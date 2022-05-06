@@ -8,13 +8,14 @@ output: html_document
 ## Discussion Note
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(zoo)
 
 monthly_retail_df <- read_csv("data/monthly_retail.csv")
 monthly_retail_df1 <- read_csv("data/monthly_retail.csv")
-sp_index <- read_csv("data/s&p_index.csv")
-shoe_data <- read_csv("shoe_data.csv")
-library(tidyverse)
-library(lubridate)
+sp_index_df <- read_csv("data/sp_index_df.csv")
+shoe_data <- read_csv("data/shoe_data.csv")
 
 #Demographic
   # state population
@@ -34,12 +35,11 @@ library(lubridate)
   # Shoe dimension
   # material
 
-
-
-
-
+# Branden: linear (lasso) on premium
 
 ```
+
+
 
 
 ### Data Cleaning 
@@ -71,23 +71,29 @@ expand(time_stamp = seq(floor_date(time_stamp, unit = "month"),
 
 
 #sp index
-sp_index = sp_index[ ,-(3:10)]
+sp_index_df = sp_index_df[ ,-(3:10)]
 
-sp_index = sp_index%>% 
+sp_index_df = sp_index_df%>% 
   mutate(time_stamp=mdy(date), .before= date)
 
-sp_index = sp_index[ ,-(2)]
-
+sp_index_df = sp_index_df[ ,-(2)]
 
 # merge 
 shoe_data = shoe_data %>%
     left_join(monthly_retail_df, by='time_stamp') %>%
     left_join(monthly_retail_df1, by='time_stamp')%>%
-    left_join(sp_index, by='time_stamp')
+    left_join(sp_index_df, by='time_stamp')
 
+shoe_data = na.locf(shoe_data)
 ```
 
 
+### Explain Variables
+`sporting_goods`: Monthly Seasonally Adjusted Sales (in Millions of Dollars) in Advance Monthly Sales for Retail and Food Services: U.S. Total
+
+`monthly_retail`: Monthly Seasonally Adjusted Sales (in Millions of Dollars) in Sporting Goods, Hobby, Musical Instrument, and Book Stores: U.S. Total
+
+`sp_index`: the index comprises stocks in the S&P toal market index that are classified as in the GICS retail sub-indsutry
 
 
 
