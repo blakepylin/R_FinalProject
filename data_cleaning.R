@@ -4,7 +4,6 @@ shoe_data <- read.csv("shoe_data.csv")
 shoe_characteristics = read.csv("shoe_characteristics.csv")
 ncaa_teams = read.csv("ncaa.csv")
 
-
 shoe_data$sale_price = as.numeric(gsub("[\\$,]", "", shoe_data$sale_price))
 shoe_data$retail_price = as.numeric(gsub("[\\$,]", "", shoe_data$retail_price))
 
