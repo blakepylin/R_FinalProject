@@ -56,7 +56,6 @@ shoe_data <- read_csv("data/shoe_data.csv")
 
 ### Data Cleaning 
 ```{r data cleaning, echo=FALSE}
-
 # put on time stamp for every data sets
 shoe_data = shoe_data %>% 
   mutate(time_stamp=mdy(shoe_data$order_date), .before=order_date)
@@ -66,7 +65,6 @@ shoe_data$year = year(shoe_data$time_stamp)
 shoe_data$sale_price = as.numeric(gsub("[\\$,]", "", shoe_data$sale_price))
 shoe_data$retail_price = as.numeric(gsub("[\\$,]", "", shoe_data$retail_price))
 shoe_data_with_pop$disposable_per_cap_income = as.numeric(gsub("[\\$,]", "", shoe_data_with_pop$disposable_per_cap_income))
-
 
 #sporting good index
 monthly_retail_df=monthly_retail_df %>% 
@@ -88,13 +86,10 @@ group_by(time_stamp) %>%
 expand(time_stamp = seq(floor_date(time_stamp, unit = "month"),
        ceiling_date(time_stamp, unit="month")-days(1), by="day"), monthly_retail) %>% as.data.frame()
 
-
 #sp index
 sp_index_df = sp_index_df[ ,-(3:10)]
-
 sp_index_df = sp_index_df%>% 
   mutate(time_stamp=mdy(date), .before= date)
-
 sp_index_df = sp_index_df[ ,-(2)]
 
 # merge 
@@ -104,8 +99,6 @@ shoe_data = shoe_data %>%
     left_join(sp_index_df, by='time_stamp')
 
 shoe_data = na.locf(shoe_data)
-
-
 
 
 #team performance stuff

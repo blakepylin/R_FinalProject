@@ -10,11 +10,8 @@ library(gbm)
 library(caret)
 library(gamlr)
 
-##Cleaning stuff
-shoe_data$sale_price = as.numeric(gsub("[\\$,]", "", shoe_data$sale_price))
-shoe_data$retail_price = as.numeric(gsub("[\\$,]", "", shoe_data$retail_price))
 
-premium_data = shoe_data %>%
+premium_data = shoe_final %>%
   mutate(premium = (sale_price - retail_price)/retail_price) %>%
   mutate_if(is.character, as.factor)
 
@@ -28,15 +25,42 @@ premium_test  = testing(premium_split)
 premium_tree = rpart(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp + release_date, data = premium_train,
                     control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
 
-rpart.plot(premium_tree, digits=-5, type=4, extra=1)
+#rpart.plot(premium_tree, digits=-5, type=4, extra=1)
 
 # forest 
-premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp + release_date, data=premium_train, control = rpart.control(cp = 0.00001), importance=TRUE)
+premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp + release_date, data=premium_train, control = rpart.control(cp = 0.001), importance=TRUE)
 
+# variable importance measures
+vi = varImpPlot(premium_forest, type=1)
+
+
+# boosted trees
+premium_gbm = gbm(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp+ release_date, data= premium_train,
+                  interaction.depth=4, n.trees=350, shrinkage=.05, cv.folds = 10, 
+                  distribution='gaussian')
+
+gbm.perf(premium_gbm)
+
+#Define hyperparameter grid.
+hyperparams <- expand.grid(n.trees = 200,
+                            interaction.depth = 1,
+                            shrinkage = 0.1,
+                            n.minobsinnode = 10)
+ 
+# Apply hyperparameter grid to train()
+ set.seed(42)
+ gbm_model <- train(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp+ release_date,
+                    data = premium_train,
+                    method = "gbm",
+                    trControl = trainControl(method = "repeatedcv", number = 5, repeats = 3),
+                    verbose = FALSE,
+                    tuneGrid = hyperparams)
+
+# forest pd plots
+partialPlot(DengueRandom, dengue_test, 'specific_humidity', las=1)
+partialPlot(DengueRandom, dengue_test, 'precipitation_amt', las=1)
+partialPlot(DengueRandom, dengue_test, 'tdtr_k', las=1)
+
+# finished model building: compare RMSE
 rmse_premium_tree = rmse(premium_tree, premium_test)
 rmse_premium_forest = rmse(premium_forest, premium_test)
-
-
-
-
-
