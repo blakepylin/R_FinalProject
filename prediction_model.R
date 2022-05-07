@@ -26,7 +26,7 @@ premium_test  = testing(premium_split)
 
 # a single tree
 premium_tree = rpart(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp + release_date, data = premium_train,
-                    control = rpart.control(cp = 0.01, minsplit=300), maxdepth = 4)
+                    control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
 
 rpart.plot(premium_tree, digits=-5, type=4, extra=1)
 
