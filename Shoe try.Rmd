@@ -137,7 +137,7 @@ shoe_data = merge(shoe_data, state_pop_income, by.x = c("buyer_region","year"), 
 
 
 ```{r visualizations, echo=FALSE, dpi=300}
-
+shoe_data <- read.csv("data/shoe_final.csv")
 #For the visualizations, we need to aggregate by Year-Month
 shoe_data$Year_month <- format(as.Date(shoe_data$time_stamp), "%Y-%m")
 
@@ -205,8 +205,14 @@ total_order_count = shoe_data %>%
   summarise(total_order_count = n()) %>%
   select(state = buyer_region, year, total_order_count)
 
+state_pop_income = distinct(shoe_data %>%
+                              group_by(buyer_region, year) %>%
+                              select(year, buyer_region, State_pop_year, disposable_per_cap_income) %>%
+                              arrange(buyer_region, year))
 
 state_year_aggs = merge(merge(resale_prem, total_order_count, by = c("state", "year")), state_pop_income, by.x = c("state","year"), by.y=c("buyer_region","year"), all.x = TRUE)
+
+
 
 ## resale premium
 map_1 = plot_usmap(data = state_year_aggs %>% filter(year=="2017"), values = "avg_resale_premium", color = "black") + 
@@ -247,7 +253,6 @@ map_6 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "or
 map_4
 map_5
 map_6 #oregon emerges as a major sneaker buyer market
-
 
 ```
 
