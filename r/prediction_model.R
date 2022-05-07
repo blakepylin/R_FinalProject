@@ -11,6 +11,7 @@ library(caret)
 library(gamlr)
 
 shoe_final = read.csv("data/shoe_final.csv")
+
 premium_data = shoe_final %>%
   mutate(premium = (sale_price - retail_price)/retail_price) %>%
   mutate_if(is.character, as.factor)
@@ -33,12 +34,26 @@ premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer
 # variable importance measures
 vi = varImpPlot(premium_forest, type=1)
 
+# forest pd plots
+partialPlot(premium_forest, premium_test, 'Year_month', las=1)
+partialPlot(premium_forest, premium_test, 'shoe_size', las=1)
+partialPlot(premium_forest, premium_test, 'tdtr_k', las=1)
 
-# boosted trees
+# finished model building: compare RMSE
+rmse_premium_tree = rmse(premium_tree, premium_test)
+rmse_premium_forest = rmse(premium_forest, premium_test)
+
+
+
+## ignore the rest, it's gbm
+
+
+
+
+# GBM
 premium_gbm = gbm(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month + release_date, data= premium_train,
                   interaction.depth=4, n.trees=350, shrinkage=.05, cv.folds = 10, 
                   distribution='gaussian')
-
 gbm.perf(premium_gbm)
 
 #Define hyperparameter grid.
@@ -56,11 +71,6 @@ hyperparams <- expand.grid(n.trees = 200,
                     verbose = FALSE,
                     tuneGrid = hyperparams)
 
-# forest pd plots
-partialPlot(DengueRandom, dengue_test, 'specific_humidity', las=1)
-partialPlot(DengueRandom, dengue_test, 'precipitation_amt', las=1)
-partialPlot(DengueRandom, dengue_test, 'tdtr_k', las=1)
 
-# finished model building: compare RMSE
-rmse_premium_tree = rmse(premium_tree, premium_test)
-rmse_premium_forest = rmse(premium_forest, premium_test)
+
+

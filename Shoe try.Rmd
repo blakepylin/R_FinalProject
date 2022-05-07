@@ -100,10 +100,7 @@ shoe_data = shoe_data %>%
 
 shoe_data = na.locf(shoe_data)
 
-<<<<<<< HEAD
 
-=======
->>>>>>> 129f439edb06640298f99e6e3e6739df6adfea44
 #team performance stuff
 ncaa_teams = read.csv("data/ncaa.csv")
 ncaa_teams = ncaa_teams %>%
