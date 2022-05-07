@@ -84,7 +84,8 @@ shoe_data = merge(shoe_data, shoe_characteristics, by.x = "sneaker_name", by.y="
 # state population and income
 shoe_data = merge(shoe_data, state_pop_income, by.x = c("buyer_region","year"), by.y = c("buyer_region","year"), all.x = TRUE)
 shoe_data$Year_month <- format(as.Date(shoe_data$time_stamp), "%Y-%m")
-
+shoe_data = shoe_data[ ,-(1)]
+shoe_data = shoe_data[ ,-(30)]
 
 write.csv(shoe_data, "data/shoe_final.csv")
 

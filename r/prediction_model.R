@@ -10,9 +10,9 @@ library(gbm)
 library(caret)
 library(gamlr)
 
-shoe_final = read.csv("data/shoe_final.csv")
 
-premium_data = shoe_final %>%
+
+premium_data = shoe_data %>%
   mutate(premium = (sale_price - retail_price)/retail_price) %>%
   mutate_if(is.character, as.factor)
 

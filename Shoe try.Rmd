@@ -11,35 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(lubridate)
 library(zoo)
-
-monthly_retail_df <- read_csv("data/monthly_retail.csv")
-monthly_retail_df1 <- read_csv("data/monthly_retail.csv")
-sp_index_df <- read_csv("data/sp_index_df.csv")
-state_pop_income <- read_csv("data/state_pop_income.csv")
-shoe_data <- read_csv("data/shoe_data.csv")
-
-
-#Demographic
-  # state population
-  # state income
-
-#Market Trend
-  # ETF price - consumer good/ S&P 500
-  # retail sales trend - US Census Bureau
-
-#Popularity
-  #Team performance
-  #google search trend
-  #social media
-  #Kayne's song on chart 
-
-#Product
-  # Shoe dimension
-  # material
-
-# Branden: data analysis: https://thehustle.co/shark-tank-data-analysis-10-seasons/
-# Blake: random forest, linear (lasso) on premium
-# Jayme: variable, introduction
 ```
 
 
@@ -132,10 +103,11 @@ shoe_data = merge(shoe_data, state_pop_income, by.x = c("buyer_region","year"), 
 ```
 
 
+
+
 ```{r visualizations, echo=FALSE, dpi=300}
 shoe_data <- read.csv("data/shoe_final.csv")
-#For the visualizations, we need to aggregate by Year-Month
-shoe_data$Year_month <- format(as.Date(shoe_data$time_stamp), "%Y-%m")
+
 
 #We'll look at the total sales per month and the cumulative sum for each brand over time
 sales_dollars = shoe_data %>%
