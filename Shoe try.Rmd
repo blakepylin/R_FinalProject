@@ -233,7 +233,7 @@ map_3
 
 ## total orders
 
-#column is in millions so we gotta * 1000000
+# column is in millions so we gotta * 1000000
 state_year_aggs$State_pop_year = state_year_aggs$State_pop_year*1000000
 state_year_aggs$orders_per_capita = state_year_aggs$total_order_count / state_year_aggs$State_pop_year
 state_year_aggs$orders_per_10000 = 10000*(state_year_aggs$total_order_count / state_year_aggs$State_pop_year)
@@ -255,9 +255,6 @@ map_5
 map_6 #oregon emerges as a major sneaker buyer market
 
 ```
-
-
-
 
 
 ### Reference 
