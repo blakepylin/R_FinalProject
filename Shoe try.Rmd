@@ -65,7 +65,7 @@ shoe_data$year = year(shoe_data$time_stamp)
 #drop commas and dollar signs
 shoe_data$sale_price = as.numeric(gsub("[\\$,]", "", shoe_data$sale_price))
 shoe_data$retail_price = as.numeric(gsub("[\\$,]", "", shoe_data$retail_price))
-shoe_data_with_pop$disposable_per_cap_income = as.numeric(gsub("[\\$,]", "", shoe_data_with_pop$disposable_per_cap_income))
+state_pop_income$disposable_per_cap_income = as.numeric(gsub("[\\$,]", "", state_pop_income$disposable_per_cap_income))
 
 
 #sporting good index
@@ -105,9 +105,6 @@ shoe_data = shoe_data %>%
 
 shoe_data = na.locf(shoe_data)
 
-
-
-
 #team performance stuff
 ncaa_teams = read.csv("data/ncaa.csv")
 ncaa_teams = ncaa_teams %>%
@@ -134,13 +131,32 @@ shoe_data = merge(shoe_data, shoe_characteristics, by.x = "sneaker_name", by.y="
 
 
 # state population and income
-merge(shoe_data, state_pop_income, by.x = c("buyer_region","year"), by.y = c("buyer_region","year"), all.x = TRUE)
+shoe_data = merge(shoe_data, state_pop_income, by.x = c("buyer_region","year"), by.y = c("buyer_region","year"), all.x = TRUE)
 
 
 ```
 
 
+```{r visualizations, echo=FALSE}
+shoe_data$Year_month <- format(as.Date(shoe_data$time_stamp), "%Y-%m")
 
+sales_dollars = shoe_data %>%
+  group_by(brand, Year_month) %>%
+  summarise(monthly_sales = sum(sale_price))
+sales_dollars = sales_dollars %>%
+  group_by(brand) %>%
+  mutate(total_sales = cumsum(monthly_sales))
+
+
+ggplot(sales_dollars) +
+  geom_line(aes(x=Year_month,y=monthly_sales, group = brand, color = brand))
+
+ggplot(sales_dollars) +
+  geom_line(aes(x=Year_month,y=total_sales, group = brand, color = brand))
+
+
+
+```
 
 
 

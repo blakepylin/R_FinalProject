@@ -1,0 +1,35 @@
+---
+title: "Visualizations"
+author: ""
+date: "4/21/2022"
+output:
+  md_document:
+    variant: markdown_github
+---
+
+``````{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(usmaps)
+
+shoe_data <- read.csv("data/shoe_data.csv")
+```
+
+## Data Cleaning (won't)
+```{r setup, include=FALSE}
+
+shoe_data <- read.csv("data/shoe_data.csv")
+shoe_data$sale_price = as.numeric(gsub("[\\$,]", "", shoe_data$sale_price))
+shoe_data$retail_price = as.numeric(gsub("[\\$,]", "", shoe_data$retail_price))
+shoe_data_with_pop$disposable_per_cap_income = as.numeric(gsub("[\\$,]", "", shoe_data_with_pop$disposable_per_cap_income))
+
+shoe_data = shoe_data %>% 
+  mutate(time_stamp=mdy(shoe_data$order_date), .before=order_date)
+
+shoe_data = shoe_data %>% 
+  mutate(time_stamp2=mdy(shoe_data$release_date), .before=release_date)
+
+shoe_data$Year_month <- format(as.Date(shoe_data$time_stamp), "%Y-%m")
+
+```
