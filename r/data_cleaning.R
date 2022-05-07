@@ -85,5 +85,5 @@ shoe_data = merge(shoe_data, shoe_characteristics, by.x = "sneaker_name", by.y="
 shoe_data = merge(shoe_data, state_pop_income, by.x = c("buyer_region","year"), by.y = c("buyer_region","year"), all.x = TRUE)
 
 
-write.csv("shoe_data/shoe_final.csv")
+write.csv(shoe_data, "data/shoe_final.csv")
 
