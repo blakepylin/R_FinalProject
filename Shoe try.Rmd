@@ -35,8 +35,10 @@ shoe_data <- read_csv("data/shoe_data.csv")
   # Shoe dimension
   # material
 
-# Branden: linear (lasso) on premium
 
+# Branden: data analysis: https://thehustle.co/shark-tank-data-analysis-10-seasons/
+# Blake: random forest, linear (lasso) on premium
+# Jayme: variable, introduction
 ```
 
 
