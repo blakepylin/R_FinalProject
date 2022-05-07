@@ -35,11 +35,19 @@ shoe_data <- read_csv("data/shoe_data.csv")
   # Shoe dimension
   # material
 
-
 # Branden: data analysis: https://thehustle.co/shark-tank-data-analysis-10-seasons/
 # Blake: random forest, linear (lasso) on premium
 # Jayme: variable, introduction
 ```
+
+
+
+### Explain Variables
+`sporting_goods`: Monthly Seasonally Adjusted Sales (in Millions of Dollars) in Advance Monthly Sales for Retail and Food Services: U.S. Total
+
+`monthly_retail`: Monthly Seasonally Adjusted Sales (in Millions of Dollars) in Sporting Goods, Hobby, Musical Instrument, and Book Stores: U.S. Total
+
+`sp_index`: the index comprises stocks in the S&P total market index that are classified as in the GICS retail sub-industry
 
 
 
@@ -115,16 +123,12 @@ shoe_characteristics = read.csv("data/shoe_characteristics.csv")
 shoe_data = merge(shoe_data, shoe_characteristics, by.x = "sneaker_name", by.y="Shoe", all.x = TRUE)
 
 
-
 ```
 
 
-### Explain Variables
-`sporting_goods`: Monthly Seasonally Adjusted Sales (in Millions of Dollars) in Advance Monthly Sales for Retail and Food Services: U.S. Total
 
-`monthly_retail`: Monthly Seasonally Adjusted Sales (in Millions of Dollars) in Sporting Goods, Hobby, Musical Instrument, and Book Stores: U.S. Total
 
-`sp_index`: the index comprises stocks in the S&P toal market index that are classified as in the GICS retail sub-indsutry
+
 
 
 
