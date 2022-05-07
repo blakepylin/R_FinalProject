@@ -10,7 +10,7 @@ library(gbm)
 library(caret)
 library(gamlr)
 
-
+shoe_final = read.csv("data/shoe_final.csv")
 premium_data = shoe_final %>%
   mutate(premium = (sale_price - retail_price)/retail_price) %>%
   mutate_if(is.character, as.factor)
@@ -28,14 +28,14 @@ premium_tree = rpart(premium ~ brand + sneaker_name + shoe_size + buyer_region +
 #rpart.plot(premium_tree, digits=-5, type=4, extra=1)
 
 # forest 
-premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp + release_date, data=premium_train, control = rpart.control(cp = 0.001), importance=TRUE)
+premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month + release_date, data=premium_train, control = rpart.control(cp = 0.001), importance=TRUE)
 
 # variable importance measures
 vi = varImpPlot(premium_forest, type=1)
 
 
 # boosted trees
-premium_gbm = gbm(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp+ release_date, data= premium_train,
+premium_gbm = gbm(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month + release_date, data= premium_train,
                   interaction.depth=4, n.trees=350, shrinkage=.05, cv.folds = 10, 
                   distribution='gaussian')
 
@@ -49,7 +49,7 @@ hyperparams <- expand.grid(n.trees = 200,
  
 # Apply hyperparameter grid to train()
  set.seed(42)
- gbm_model <- train(premium ~ brand + sneaker_name + shoe_size + buyer_region + time_stamp+ release_date,
+ gbm_model <- train(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month +release_date,
                     data = premium_train,
                     method = "gbm",
                     trControl = trainControl(method = "repeatedcv", number = 5, repeats = 3),
