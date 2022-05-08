@@ -144,6 +144,26 @@ map_6 #oregon emerges as a major sneaker buyer market
 ```
 
 
+
+```{r oregon, echo=FALSE}
+state_year_aggs$avg_percap_income = mean(state_year_aggs$disposable_per_cap_income)
+
+norm_sale_count = state_year_aggs %>%
+  group_by(year, state) %>%
+  summarise(order_to_income = orders_per_capita/ disposable_per_cap_income)%>%
+  select(year, state, order_to_income)
+
+
+map_7 = plot_usmap(data = norm_sale_count %>% filter(year=="2019"), values = "order_to_income", color = "red") + 
+  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "2019 Total Order Count per 10000")
+
+map_7
+
+
+```
+
+
 ### Reference 
 ##### S&P Retail Select Industry Index
 https://www.spglobal.com/spdji/en/indices/equity/sp-retail-select-industry-index/#overview
