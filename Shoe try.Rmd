@@ -95,10 +95,16 @@ time_elapse = time_elapse%>%
   select(resale_premium, resale_premium_percent, brand, time_elapsed)
 
 ggplot(time_elapse) +
-  geom_point(aes(x=time_elapsed,y=resale_premium, group = brand, color = brand))
+  geom_point(aes(x=time_elapsed,y=resale_premium, group = brand, color = brand)) +
+  xlab("Days Between Order Date and Release Date") +
+  ylab("Resale Premium")
 
 ggplot(time_elapse) +
-  geom_point(aes(x=time_elapsed,y=resale_premium_percent, group = brand, color = brand))
+  geom_point(aes(x=time_elapsed,y=resale_premium_percent, group = brand, color = brand)) +
+  xlab("Days Between Order Date and Release Date") +
+  ylab("Percent Resale Premium")
+  
+  
 
 ```
 
