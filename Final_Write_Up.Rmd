@@ -1,10 +1,26 @@
 ---
-title: "Lin_Ok_Gerring_Write_Up"
+title: "Sneaky Machine Learning"
 author: "Jayme Gerring, Brendan Ok, Pin-Yun Lin"
-date: "5/7/2022"
+date: "5/9/2022"
 output: pdf_document
 urlcolor: blue
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+library(zoo)
+library(usmap)
+library(rpart)
+library(rpart.plot)
+library(rsample) 
+library(randomForest)
+library(modelr)
+library(caret)
+library(gamlr)
+```
+
 # Abstract
 
 blah blah blah
@@ -13,9 +29,7 @@ blah blah blah
 
 Pulling in [\$70 billion in 2020][id1], the sneaker market has a powerful influence within American retail. Because of the high demand for these sometimes rare and unique shoes, a powerful resale market has also emerged. The sneaker resale market was worth as much as [\$2 billion in 2019][id2], a figure that has only increased as more and more players try to get in on the sometimes over 2000% profit margin earned from the rarest of sneakers.
 
-[id1]: https://www.nbcnews.com/news/nbcblk/sneakers-are-hot-resellers-are-making-living-coveted-models-rcna3619
-[id2]: https://www.nbcnews.com/news/nbcblk/sneakers-generated-70b-last-year-black-retailers-saw-little-rcna3546
-[^1]: Colorway is a term used to quickly sum up the colors of the sneakers, in our dataset we have colorway categorized as primary, secondary and tertiary colors.
+\vspace{2mm} 
 
 As three certified 'sneakerheads' we were interested in using machine learning methods to accurately predict the premiums that result from reselling popular sneakers. 
 
@@ -28,11 +42,43 @@ Price Premium is defined as: \vspace{5mm}
 Why is this relevant? Premiums are a quick and simple benchmark to measure the profitability and desirability of a 
 specific sneaker. Many characteristics, such as colorway[^1], brand, size, and material can make or break a shoe sale. The physical characteristics of shoes are not the only determining factors for premiums, much like other retail goods, shoe sales have a seasonality component as well. This makes understanding the timing of a sale crucial. Premiums can demonstrate to resellers which characteristics make a shoe more profitable. Premiums can also be useful to buyers: based on characteristics, what price is a good deal and what prices border on irrational? 
 
-# Methodolgy
+(Think about adding more)
+
+# Methodology
+
+The specific shoe data for this project was collected from the popular resale website [StockX][id3]. The dataset contains the details of 99,956 orders of \emph{Yeezy} and \emph{Nike X Off-White} shoes made on StockX from September 2017 to February 2019. The variables associated with orders are: \emph{Buyer Region} (State), \emph{Order Date}, \emph{Brand}, \emph{Shoe Name}, \emph{Retail Price}, \emph{Sale Price}, \emph{Release Date}, and \emph{Size}.
+
+\emph{Premium} was created from this initial dataset using the formula described in the previous section. 
+
+We collected additional variables regarding characteristics of each shoe including: \emph{Material}, \emph{Lace Type}. \emph{Primary Color}, \emph{Secondary Color}, and \emph{Tertiary Color}.
+
+Because certain buying choices could be reflective of economic conditions, we added the variables: \emph{USA Monthly Retail Sales} (Monthly), \emph{State Disposable Income per Capita} (Yearly), and \emph{State Population} (Yearly)
+
+```{r visualizations, echo=FALSE, dpi=300}
+shoe_data <- read.csv("data/shoe_final.csv")
+
+# Next we'll look at total sales volume (number of orders) per month as well as cumulative orders over time.
+
+sales_vol = shoe_data %>%
+  group_by(brand, Year_month) %>%
+  summarise(monthly_orders = n())
+sales_vol = sales_vol %>%
+  group_by(brand) %>%
+  mutate(total_orders = cumsum(monthly_orders))
+
+ggplot(sales_vol) +
+  geom_line(aes(x=Year_month,y=monthly_orders, group = brand, color = brand)) + labs(y = " Order Volume (Monthly)", x = "Date") + ggtitle("Monthly Order Volume, Over Time") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700"))
 
 
+```
+
+(We should drop variables from the CSV if we're not going to use them)
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+[id1]: https://www.nbcnews.com/news/nbcblk/sneakers-are-hot-resellers-are-making-living-coveted-models-rcna3619
+[id2]: https://www.nbcnews.com/news/nbcblk/sneakers-generated-70b-last-year-black-retailers-saw-little-rcna3546
+[id3]: https://stockx.com/
+[^1]: Colorway is a term used to quickly sum up the colors of the sneakers, in our dataset we have colorway categorized as primary, secondary and tertiary colors.
