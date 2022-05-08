@@ -124,6 +124,7 @@ map_3
 state_year_aggs$State_pop_year = state_year_aggs$State_pop_year*1000000
 state_year_aggs$orders_per_capita = state_year_aggs$total_order_count / state_year_aggs$State_pop_year
 state_year_aggs$orders_per_10000 = 10000*(state_year_aggs$total_order_count / state_year_aggs$State_pop_year)
+state_year_aggs$orders_income_fixed = (state_year_aggs$total_order_count / state_year_aggs$disposable_per_cap_income)
 
 map_4 = plot_usmap(data = state_year_aggs %>% filter(year=="2017"), values = "orders_per_10000", color = "red") + 
   scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
@@ -137,12 +138,29 @@ map_6 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "or
   scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
   theme(legend.position = "right") + labs(title = "2019 Total Order Count per 10000")
 
+
+
+
 map_4
 map_5
 map_6 #oregon emerges as a major sneaker buyer market
 
+# holding income fixed, we'll see if oregon still stands out
+map_7 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "orders_income_fixed", color = "red") + scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "2019 Total Order Count per capita")
+
+
+map_7 #oregon is still special 
+
+
 ```
 
+```{r correlation, echo=FALSE, dpi=300}
+X = shoe_data %>%
+  select(resale_premium_percent, sp_index, sporting_goods.x)
+
+ggcorrplot::ggcorrplot(cor(X), hc.order = TRUE)
+```
 
 
 ```{r oregon, echo=FALSE}
