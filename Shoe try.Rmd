@@ -84,6 +84,22 @@ brand_premium = shoe_data %>%
 ggplot(brand_premium) +
   geom_line(aes(x=Year_month,y=average_premium, group = brand, color = brand))
 
+time_elapse = shoe_data %>%
+  mutate(time_stamp2=mdy(shoe_data$release_date), .before=release_date)
+
+time_elapse$time_elapsed = as.numeric(as.Date(time_elapse$time_stamp) - as.Date(time_elapse$time_stamp2))
+
+time_elapse$time_elapsed[time_elapse$time_elapsed < 0] <- 0
+
+time_elapse = time_elapse%>%
+  select(resale_premium, resale_premium_percent, brand, time_elapsed)
+
+ggplot(time_elapse) +
+  geom_point(aes(x=time_elapsed,y=resale_premium, group = brand, color = brand))
+
+ggplot(time_elapse) +
+  geom_point(aes(x=time_elapsed,y=resale_premium_percent, group = brand, color = brand))
+
 ```
 
 For Yeezys, buyers typically paid a ~200% premium for resale while Off-White buyers paid on average ~600%. For both brands the resale prices cooled off, but the Off-White shoes still demanded a much higher average premium throughout. We think this is the case because Adidas tends to restock their shoes much more frequently to the point where some shoes like the `adidas-Yeezy-Boost-350-V2-Butter` or the `Adidas-Yeezy-Boost-350-V2-Cream-White` resell for less than their retail price.
