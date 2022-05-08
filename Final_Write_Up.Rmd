@@ -1,0 +1,38 @@
+---
+title: "Lin_Ok_Gerring_Write_Up"
+author: "Jayme Gerring, Brendan Ok, Pin-Yun Lin"
+date: "5/7/2022"
+output: pdf_document
+urlcolor: blue
+---
+# Abstract
+
+blah blah blah
+
+# Introduction
+
+Pulling in [\$70 billion in 2020][id1], the sneaker market has a powerful influence within American retail. Because of the high demand for these sometimes rare and unique shoes, a powerful resale market has also emerged. The sneaker resale market was worth as much as [\$2 billion in 2019][id2], a figure that has only increased as more and more players try to get in on the sometimes over 2000% profit margin earned from the rarest of sneakers.
+
+[id1]: https://www.nbcnews.com/news/nbcblk/sneakers-are-hot-resellers-are-making-living-coveted-models-rcna3619
+[id2]: https://www.nbcnews.com/news/nbcblk/sneakers-generated-70b-last-year-black-retailers-saw-little-rcna3546
+[^1]: Colorway is a term used to quickly sum up the colors of the sneakers, in our dataset we have colorway categorized as primary, secondary and tertiary colors.
+
+As three certified 'sneakerheads' we were interested in using machine learning methods to accurately predict the premiums that result from reselling popular sneakers. 
+
+Price Premium is defined as: \vspace{5mm} 
+
+ $Premium (\%) = \frac{Resale Price (\$) - Retail Price (\$)}{Retail Price(\$)}$
+ 
+ \vspace{5mm} 
+
+Why is this relevant? Premiums are a quick and simple benchmark to measure the profitability and desirability of a 
+specific sneaker. Many characteristics, such as colorway[^1], brand, size, and material can make or break a shoe sale. The physical characteristics of shoes are not the only determining factors for premiums, much like other retail goods, shoe sales have a seasonality component as well. This makes understanding the timing of a sale crucial. Premiums can demonstrate to resellers which characteristics make a shoe more profitable. Premiums can also be useful to buyers: based on characteristics, what price is a good deal and what prices border on irrational? 
+
+# Methodolgy
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
