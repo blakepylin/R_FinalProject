@@ -36,7 +36,7 @@ premium_tree = rpart(premium ~ brand + sneaker_name + shoe_size + buyer_region +
 #rpart.plot(premium_tree, digits=-5, type=4, extra=1)
 
 # forest 
-premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=premium_train, control = rpart.control(cp = 0.002), ntrees = 200, importance=TRUE, na.action = na.omit)
+premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=premium_train, control = rpart.control(cp = 0.002), ntrees = 300, importance=TRUE, na.action = na.omit)
 
 
 # variable importance measures
