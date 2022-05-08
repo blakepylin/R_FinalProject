@@ -1,0 +1,34 @@
+---
+title: "for_oregon"
+author: "Blake Lin"
+date: "5/7/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r cars, echo=FALSE}
+# We're looking at a sales premium percent change
+
+
+norm_sale_count = shoe_data %>%
+  group_by(year = year(time_stamp), buyer_region) %>%
+  summarise(total_order_count = n()) %>%
+  summarise(norm_sale = (total_order_count - mean(disposable_per_cap_income))/disposable_per_cap_income)
+  
+
+state_pop_income = distinct(shoe_data %>%
+                              group_by(buyer_region, year) %>%
+                              select(year, buyer_region, State_pop_year, disposable_per_cap_income) %>%
+                              arrange(buyer_region, year))
+
+state_year_aggs = merge(merge(resale_prem, total_order_count, by = c("state", "year")), state_pop_income, by.x = c("state","year"), by.y=c("buyer_region","year"), all.x = TRUE)
+
+
+```
+
+
