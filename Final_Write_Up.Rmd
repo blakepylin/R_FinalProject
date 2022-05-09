@@ -44,7 +44,6 @@ Price Premium is defined as: \vspace{5mm}
 
 Why is this relevant? Premiums are a quick and simple benchmark to measure the profitability and desirability of a specific sneaker. Many characteristics, such as colorway[^1], brand, size, and material can make or break a shoe sale. The physical characteristics of shoes are not the only determining factors for premiums, much like other retail goods, shoe sales have a seasonality component as well. This makes understanding the timing of a sale crucial. Premiums can demonstrate to resellers which characteristics make a shoe more profitable. Premiums can also be useful to buyers: based on characteristics, what price is a good deal and what prices border on irrational? 
 
-(Think about adding more)
 
 # Methodology
 
@@ -60,7 +59,7 @@ The specific shoe data for this project was collected from the popular resale we
 
 We collected additional variables regarding characteristics of each shoe including: \emph{Material}, \emph{Lace Type}. \emph{Primary Color}, \emph{Secondary Color}, and \emph{Tertiary Color}, 
 
-Because certain buying choices could be reflective of economic conditions, we added the variables: \emph{USA Monthly Retail Sales} (Monthly), \emph{State Disposable Income per Capita} (Yearly), and \emph{State Population} (Yearly)
+Because certain buying choices could be reflective of economic conditions, we added the variables: \emph{USA Monthly Retail Sales} (Monthly), \emph{State Disposable Income per Capita} (Yearly), and \emph{State Population} (Yearly). These demographic variables were collected from the U.S. Census Bureau, the Federal Reserve, and the Bureau of Economic Analysis.
 
 A quick glance at monthly order volume by brand (\emph{Figure 1}), reveals a definite seasonal pattern, with orders spiking for both brands around the holiday season in both 2017 and 2018. The data also exhibit non-seasonal spikes in order numbers that appear to be linked to specific product release dates and restocks. For example, we believe the July 2018 spike in \emph{Yeezy} orders could be associated with the late June release of the \emph{350 V2 "Butter”}. It should be noted that the steep decline in orders around February 2019 is due to the data ending in the middle of the month. 
 
@@ -145,7 +144,7 @@ map_5 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "or
 map_5
 ```
 
-After looking at order volume, we then decided to turn our attention to premiums. Over the entire data set, \emph{Nike X Off-White} has around a 284\% premium and \emph{Yeezy} has a premium of around 64\%. 
+After looking at order volume, we then decided to turn our attention to premiums. Over the entire data set, \emph{Nike X Off-White} has an average premium of around 284\% and \emph{Yeezy} has an average premium of around 64\%. 
 
 Plotting the average premium over time, we can see that there again appears to be a seasonality effect. \emph{Figure 3} displays the average premium by brand over time. Interestingly, the average premium seems to dip for each brand around the holiday season. This effect could be due to a saturation of sellers trying to take advantage of the holiday season and new releases/restocks of shoes. The downward trend of premiums over time could be due to a variety of factors: possibly more people are selling on StockX over time, driving premiums down as sellers compete for consumers. Another factor driving down premiums could be that \emph{Yeezy} and \emph{Nike X Off-White} are putting out more stock to keep up with demand, driving premiums down on the demand side. 
 
@@ -183,7 +182,7 @@ Because of the geographical effects seen in Oregon with order volume in \emph{Fi
 
 ## Part 2: Model
 
-Because our main goal is to determine the most important factors which impact premium, we decided to employ tree models. We ran both simple decision tree and random forest models.
+Because our main goal is to determine the most important factors which impact premium, we decided to employ tree models. We ran both simple decision tree and random forest models. We used the simple decision tree model as a benchmark to determine the effectiveness of Random Forest. 
 
 \emph{Premium} is this case is our dependent variable. With \emph{Brand}, \emph{Sneaker Name}, \emph{Size}, \emph{Buyer Region} (State), \emph{Order Date} (grouped by month), \emph{Primary Color}, \emph{Secondary Color}, and \emph{Material} as our independent variables. The complexity parameter for our decision tree model was placed at .02, minimum observations for split at 300, and max depth at 4. For random forest, our complexity parameter was set at .002 and the number of trees set to 300. For cross-validation, our data was split into testing and training sets, with 20\% of the data reserved for testing. 
 
@@ -203,20 +202,22 @@ premium_train = training(premium_split)
 premium_test  = testing(premium_split)
 
 # a single tree
-premium_tree = rpart(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data = premium_train,
+premium_tree = rpart(premium ~ sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data = premium_train,
                     control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
 
 #rpart.plot(premium_tree, digits=-5, type=4, extra=1)
 
 # forest 
-premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=premium_train, control = rpart.control(cp = 0.002), ntrees = 300, importance=TRUE, na.action = na.omit)
+premium_forest = randomForest(premium ~ sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=premium_train, control = rpart.control(cp = 0.002), ntrees = 300, importance=TRUE, na.action = na.omit)
 
 # variable importance measures
 vi = varImpPlot(premium_forest, type=1, main = "Figure 4: Random Forest Variable Importance")
 
 # # forest pd plot
 
-partialPlot(premium_forest, premium_test, 'shoe_size', las=1, main=paste("Partial Dependence on Shoe Size"))
+partialPlot(premium_forest, premium_test, 'shoe_size', las=1, main=paste("Figure 5: Partial Dependence on Shoe Size"))
+
+
 
 
 # finished model building: compare RMSE
@@ -237,23 +238,23 @@ map_7
 
 # Conclusion 
 
-Looking at \emph{Figure 4}, which is our variable importance plot, our random forest model tells us that the most important variable to determining premium is \emph{Order Date}. This result is not surprising due to the seasonal nature of the retail market. Based on our average premium plot (\emph{Figure 3}), it seems that the best way to maximize premium is to sell during the 'off season' that is: avoid holidays and restocks. The RMSE for our Random Forest model was 34.4
+Looking at \emph{Figure 4}, which is our variable importance plot, our random forest model tells us that the most important variable to determining premium is \emph{Order Date}. This result is not surprising due to the seasonal nature of the retail market. Based on our average premium plot (\emph{Figure 3}), it seems that the best way to maximize premium is to sell during the 'off season' that is: avoid holidays and restocks. The RMSE for our Random Forest model was 31.6\% and the RMSE for the decision tree was 65.7\%.
 
 The next most important variable in determining premium is \emph{Size}. There could be a number of reasons for this result. Based on \emph{Figure F} in the Appendix, we can see that premium can be afftected by size. Interestingly, there appears to be a distinction between half sizes and full sizes for \emph{Nike X Off-White} shoes, with full sizes between 8-10 commanding higher premiums than half sizes. Sizes over 14 for both \emph{Nike X Off-White} and \emph{Yeezy} command higher premiums, however \emph{Yeezy} doesn't show the same effect as \emph{Nike X Off-White} in sizes below 14. The effect below size 14 could be due to sheer popularity of sizes or due to a supply issue, there is a possibility that \emph{Nike X Off-White} makes more shoes in half sizes than full sizes. The effect over size 14 seems to be cause by both demand and supply, not a lot people have over size 14 feet and brands aren't incentivized to produce many styles of sizes that are so far above average. 
 
 \emph{Figure 5} appears to confirm what we saw in \emph{Figure F}, which shows a spike in the partial dependence plot between sizes 8-10 and after size 14. 
 
-The next most important variable was \emph{Sneaker Name}, this refers to the specific style of shoe. This captures buyers' preferences for one sneaker style over the other. We also noticed that release date was  captured using this variable since each style has a different release date. 
+The next most important variable was \emph{Sneaker Name}, this refers to the specific style of shoe. This captures buyers' preferences for one sneaker style over the other. We also noticed that release date was  captured using this variable since each style has a different release date. Over the course of the project, we had originally intended to use \emph{Brand} as part of the model, but we quickly noticed that \emph{Sneaker Name} captures \emph{Brand}, because brands have distinct names for their styles.
 
-The color and material variables \emph{Primary Color},\emph{Material}, and \emph{Secondary Color} were the next most important, this isolates any effects color and material may have on buyer preferences that isn't captured by the name of the style. 
+Partial Dependence plots for \emph{Order Date} and \emph{Sneaker Name} are included in the appendix as \emph{Figure G} and \emph{Figure H}, respectively. 
 
-\emph{Brand} was the next most important variable, this attempts to isolate any brand preferences a consumer may have. The importance of this variable may be under-estimated because a lot of the effect brand may have on premium has been captured in the \emph{Sneaker Name} variable.
+The color and material variables \emph{Primary Color},\emph{Secondary Color} and \emph{Material} were the next most important, this isolates any effects color and material may have on buyer preferences that isn't captured by the name of the style. 
 
 The variable of least importance in the model was \emph{Buyer Region}. This shows that even though there appeared to be customers in some states that purchased more sneakers when adjusted for population or paid a higher premium on average, geographic location did not have have as large of an impact on premium amounts as shoe characteristics. 
 
 So what does this tell us? Well, if a seller wants to maximize their premium they should focus on selling \emph{Nike X Off-White} sneakers in sizes 15 and above during lulls in holidays and restocks/releases. Obviously, one cannot corner market on abnormal shoe sizes in the right tail, so a more reasonable strategy would be to focus on selling sneakers in the 8-10 range, focusing on full sizes. \emph{Yeezy} sneakers don't seem to have a similar pattern when it comes to sizing, only really increasing in premium at sizes past 14. This leads us to conclude that desirability of certain styles may be more important in determining premiums for \emph{Yeezy}.
 
-## Back to Oregon
+## Back on the Oregon Trail
 
 Adressing the "Oregon Issue", we re-grpahed the order numbers and controlled for disposable income per capita of each state. Meaning we were trying to account for any income-related effects as to why Oregon had such a high number of orders. As you can see in \emph{Figure 6}, it appears that even after controlling for income, Oregon still has a disproportionate amount of orders compared to the rest of the 50 states. 
 
@@ -314,6 +315,10 @@ plot_premium_size_brand = ggplot(premium_size_brand) +
     scale_x_continuous("Shoe Size", labels = as.character(premium_size_brand$shoe_size), breaks = premium_size_brand$shoe_size) + ggtitle("Figure F: Average Premium by Shoe Size") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) 
 
 plot_premium_size_brand
+
+pdplt1 = partialPlot(premium_forest, premium_test, 'Year_month', las=1, main=paste("Figure G: Partial Dependence on Year-Month"))
+
+pdplt2 = partialPlot(premium_forest, premium_test, 'sneaker_name', las=1, main=paste("Figure H: Partial Dependence on Sneaker Name"))
 
 
 ```
