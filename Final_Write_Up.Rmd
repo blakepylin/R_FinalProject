@@ -38,7 +38,7 @@ As three certified 'sneakerheads' we were interested in using machine learning m
 
 Price Premium is defined as: \vspace{5mm} 
 
- $Premium (\%) = \frac{Resale Price (\$) - Retail Price (\$)}{Retail Price(\$)}$
+ $Premium (\%) = 100*\frac{Resale Price (\$) - Retail Price (\$)}{Retail Price(\$)}$
  
  \vspace{5mm} 
 
