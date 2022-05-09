@@ -26,7 +26,7 @@ knitr::opts_chunk$set(echo = TRUE,fig.align='center', fig.width = 6.7, fig.heigh
 
 # Abstract
 
-blah blah blah
+This report focuses on the question of premiums gained from reselling sneakers on the popular website StockX. We were interested in finding what characteristics determine premiums, that is the percent change in sale price on StockX compared to the shoe's original retail price. Using Random Forest Classification methods, we were able to determine that sale date and shoe size were the most important determining characteristics in maximizing premium. We also developed the secondary question examining the overrepresentation of Oregon in StockX orders, we determined that Portland's sneaker culture may be responsible for its outlier status in the data. 
 
 # Introduction
 
@@ -191,6 +191,42 @@ We also decided to attempt to address "Oregon problem" by traditional methods of
 
 # Results 
 
+```{r prediction model, cache=TRUE, echo=FALSE}
+premium_data = shoe_data %>%
+  mutate(premium = (sale_price - retail_price)/retail_price) %>%
+  mutate_if(is.character, as.factor)
+
+# split data into training and testing
+set.seed(349385)
+premium_split = initial_split(premium_data, prop=0.8)
+premium_train = training(premium_split)
+premium_test  = testing(premium_split)
+
+# a single tree
+premium_tree = rpart(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data = premium_train,
+                    control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
+
+#rpart.plot(premium_tree, digits=-5, type=4, extra=1)
+
+# forest 
+premium_forest = randomForest(premium ~ brand + sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=premium_train, control = rpart.control(cp = 0.002), ntrees = 300, importance=TRUE, na.action = na.omit)
+
+# variable importance measures
+vi = varImpPlot(premium_forest, type=1, main = "Figure 4: Random Forest Variable Importance")
+
+# # forest pd plot
+
+partialPlot(premium_forest, premium_test, 'shoe_size', las=1, main=paste("Partial Dependence on Shoe Size"))
+
+
+# finished model building: compare RMSE
+rmse_premium_tree = rmse(premium_tree, premium_test)
+rmse_premium_forest = rmse(premium_forest, premium_test)
+
+rmse_premium_tree
+rmse_premium_forest
+```
+
 ```{r map7, echo=FALSE, dpi=300}
 
 map_7 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "orders_income_fixed", color = "red") + scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
@@ -201,13 +237,15 @@ map_7
 
 # Conclusion 
 
-Our random forest model tells us that the most important variable to determining premium is \emph{Order Date}. This result is not surprising due to the seasonal nature of the retail market. Based on our average premium plot (\emph{Figure 3}), it seems that the best way to maximize premium is to sell during the 'off season' that is: avoid holidays and restocks. 
+Looking at \emph{Figure 4}, which is our variable importance plot, our random forest model tells us that the most important variable to determining premium is \emph{Order Date}. This result is not surprising due to the seasonal nature of the retail market. Based on our average premium plot (\emph{Figure 3}), it seems that the best way to maximize premium is to sell during the 'off season' that is: avoid holidays and restocks. The RMSE for our Random Forest model was 34.4
 
 The next most important variable in determining premium is \emph{Size}. There could be a number of reasons for this result. Based on \emph{Figure F} in the Appendix, we can see that premium can be afftected by size. Interestingly, there appears to be a distinction between half sizes and full sizes for \emph{Nike X Off-White} shoes, with full sizes between 8-10 commanding higher premiums than half sizes. Sizes over 14 for both \emph{Nike X Off-White} and \emph{Yeezy} command higher premiums, however \emph{Yeezy} doesn't show the same effect as \emph{Nike X Off-White} in sizes below 14. The effect below size 14 could be due to sheer popularity of sizes or due to a supply issue, there is a possibility that \emph{Nike X Off-White} makes more shoes in half sizes than full sizes. The effect over size 14 seems to be cause by both demand and supply, not a lot people have over size 14 feet and brands aren't incentivized to produce many styles of sizes that are so far above average. 
 
+\emph{Figure 5} appears to confirm what we saw in \emph{Figure F}, which shows a spike in the partial dependence plot between sizes 8-10 and after size 14. 
+
 The next most important variable was \emph{Sneaker Name}, this refers to the specific style of shoe. This captures buyers' preferences for one sneaker style over the other. We also noticed that release date was  captured using this variable since each style has a different release date. 
 
-The color variables \emph{Primary Color} and \emph{Secondary Color} were the next most important, this isolates any effects color may have on buyer preferences that isn't captured by the name of the style. 
+The color and material variables \emph{Primary Color},\emph{Material}, and \emph{Secondary Color} were the next most important, this isolates any effects color and material may have on buyer preferences that isn't captured by the name of the style. 
 
 \emph{Brand} was the next most important variable, this attempts to isolate any brand preferences a consumer may have. The importance of this variable may be under-estimated because a lot of the effect brand may have on premium has been captured in the \emph{Sneaker Name} variable.
 
@@ -284,7 +322,7 @@ plot_premium_size_brand
 
 
 
-(We should drop variables from the CSV if we're not going to use them)
+
 
 [id1]: https://www.nbcnews.com/news/nbcblk/sneakers-are-hot-resellers-are-making-living-coveted-models-rcna3619
 [id2]: https://www.nbcnews.com/news/nbcblk/sneakers-generated-70b-last-year-black-retailers-saw-little-rcna3546
