@@ -20,6 +20,8 @@ library(modelr)
 library(caret)
 library(gamlr)
 theme_set(theme_minimal())
+theme_set(theme_minimal())
+knitr::opts_chunk$set(echo = TRUE,fig.align='center', fig.width = 6.5, fig.height =3.5)
 ```
 
 # Abstract
@@ -40,8 +42,7 @@ Price Premium is defined as: \vspace{5mm}
  
  \vspace{5mm} 
 
-Why is this relevant? Premiums are a quick and simple benchmark to measure the profitability and desirability of a 
-specific sneaker. Many characteristics, such as colorway[^1], brand, size, and material can make or break a shoe sale. The physical characteristics of shoes are not the only determining factors for premiums, much like other retail goods, shoe sales have a seasonality component as well. This makes understanding the timing of a sale crucial. Premiums can demonstrate to resellers which characteristics make a shoe more profitable. Premiums can also be useful to buyers: based on characteristics, what price is a good deal and what prices border on irrational? 
+Why is this relevant? Premiums are a quick and simple benchmark to measure the profitability and desirability of a specific sneaker. Many characteristics, such as colorway[^1], brand, size, and material can make or break a shoe sale. The physical characteristics of shoes are not the only determining factors for premiums, much like other retail goods, shoe sales have a seasonality component as well. This makes understanding the timing of a sale crucial. Premiums can demonstrate to resellers which characteristics make a shoe more profitable. Premiums can also be useful to buyers: based on characteristics, what price is a good deal and what prices border on irrational? 
 
 (Think about adding more)
 
@@ -53,7 +54,7 @@ The final dataset used in this project is located in `data/shoe_final.csv`
 
 Scripts used to merge variables and clean data are located in `r/`
 
-The specific shoe data for this project was collected from the popular resale website [StockX][id3]. The dataset contains the details of 99,956 orders of \emph{Yeezy} and \emph{Nike X Off-White} shoes made on StockX from September 2017 to February 2019. The variables associated with orders are: \emph{Buyer Region} (State), \emph{Order Date}, \emph{Brand}, \emph{Shoe Name}, \emph{Retail Price}, \emph{Sale Price}, \emph{Release Date}, and \emph{Size}.
+The specific shoe data for this project was collected from the popular resale website [StockX][id3]. The dataset contains the details of 99,956 orders of \emph{Yeezy} and \emph{Nike X Off-White} shoes made on StockX from September 2017 to February 2019. The variables associated with orders are: \emph{Buyer Region} (State), \emph{Order Date}, \emph{Brand}, \emph{Sneaker Name}, \emph{Retail Price}, \emph{Sale Price}, \emph{Release Date}, and \emph{Size} (StockX only lists shoes in terms of mens sizes).
 
 \emph{Premium} was created from this initial dataset using the formula described in the previous section. 
 
@@ -76,7 +77,7 @@ sales_vol = sales_vol %>%
   mutate(total_orders = cumsum(monthly_orders))
 
 ggplot(sales_vol) +
-  geom_line(aes(x=Year_month,y=monthly_orders, group = brand, color = brand)) + labs(y = " Order Volume", x = "Date") + ggtitle("Figure 1: Monthly Order Volume, Over Time") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + guides(color = guide_legend(reverse = TRUE, title="Brand"))
+  geom_line(aes(x=Year_month,y=monthly_orders, group = brand, color = brand)) + labs(y = "Order Volume", x = "Date") + ggtitle("Figure 1: Monthly Order Volume, Over Time") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + guides(color = guide_legend(reverse = TRUE, title="Brand"))
 
 
 sales_dollars = shoe_data %>%
@@ -180,6 +181,98 @@ time_elapse = time_elapse%>%
 
 Because of the geographical effects seen in Oregon with order volume in \emph{Figure 2}. We decided to investigate the geographical effects of resale premiums. We found that in 2017, Kentucky had an unusually high average premium. In 2019, both Utah and Hawaii carried larger average premiums. Maps displaying the average premiums by state can be found in the appendix as \emph{Figure C}, \emph{Figure D}, and \emph{Figure E}. We determined that the high average premium in Kentucky in 2017 was caused by a single sale of sneakers that carried a 2000% premium. The reasons for the higher average premiums in Utah and Hawaii appear to related to tastes. Both of these states had relatively small order volumes, and the majority of the sneakers purchased were \emph{Nike X Off-White} which typically have higher premiums than \emph{Yeezy}. 
 
+## Part 2: Model
+
+Because our main goal is to determine the most important factors which impact premium, we decided to employ tree models. We ran both simple decision tree and random forest models.
+
+\emph{Premium} is this case is our dependent variable. With \emph{Brand}, \emph{Sneaker Name}, \emph{Size}, \emph{Buyer Region} (State), \emph{Order Date} (grouped by month), \emph{Primary Color}, \emph{Secondary Color}, and \emph{Material} as our independent variables. The complexity parameter for our decision tree model was placed at .02, minimum observations for split at 300, and max depth at 4. For random forest, our complexity parameter was set at .002 and the number of trees set to 300. For cross-validation, our data was split into testing and training sets, with 20\% of the data reserved for testing. 
+
+We also decided to attempt to address "Oregon problem" by traditional methods of data manipulation, controlling for population and disposable income and seeing if there was something within the data that could explain Oregon's curious position in order numbers.
+
+# Results 
+
+```{r map7, echo=FALSE, dpi=300}
+
+map_7 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "orders_income_fixed", color = "red") + scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure 6: 2019 Adjusted Order Volume by Disposable Income")
+
+map_7
+```
+
+# Conclusion 
+
+Our random forest model tells us that the most important variable to determining premium is \emph{Order Date}. This result is not surprising due to the seasonal nature of the retail market. Based on our average premium plot (\emph{Figure 3}), it seems that the best way to maximize premium is to sell during the 'off season' that is: avoid holidays and restocks. 
+
+The next most important variable in determining premium is \emph{Size}. There could be a number of reasons for this result. Based on \emph{Figure F} in the Appendix, we can see that premium can be afftected by size. Interestingly, there appears to be a distinction between half sizes and full sizes for \emph{Nike X Off-White} shoes, with full sizes between 8-10 commanding higher premiums than half sizes. Sizes over 14 for both \emph{Nike X Off-White} and \emph{Yeezy} command higher premiums, however \emph{Yeezy} doesn't show the same effect as \emph{Nike X Off-White} in sizes below 14. The effect below size 14 could be due to sheer popularity of sizes or due to a supply issue, there is a possibility that \emph{Nike X Off-White} makes more shoes in half sizes than full sizes. The effect over size 14 seems to be cause by both demand and supply, not a lot people have over size 14 feet and brands aren't incentivized to produce many styles of sizes that are so far above average. 
+
+The next most important variable was \emph{Sneaker Name}, this refers to the specific style of shoe. This captures buyers' preferences for one sneaker style over the other. We also noticed that release date was  captured using this variable since each style has a different release date. 
+
+The color variables \emph{Primary Color} and \emph{Secondary Color} were the next most important, this isolates any effects color may have on buyer preferences that isn't captured by the name of the style. 
+
+\emph{Brand} was the next most important variable, this attempts to isolate any brand preferences a consumer may have. The importance of this variable may be under-estimated because a lot of the effect brand may have on premium has been captured in the \emph{Sneaker Name} variable.
+
+The variable of least importance in the model was \emph{Buyer Region}. This shows that even though there appeared to be customers in some states that purchased more sneakers when adjusted for population or paid a higher premium on average, geographic location did not have have as large of an impact on premium amounts as shoe characteristics. 
+
+So what does this tell us? Well, if a seller wants to maximize their premium they should focus on selling \emph{Nike X Off-White} sneakers in sizes 15 and above during lulls in holidays and restocks/releases. Obviously, one cannot corner market on abnormal shoe sizes in the right tail, so a more reasonable strategy would be to focus on selling sneakers in the 8-10 range, focusing on full sizes. \emph{Yeezy} sneakers don't seem to have a similar pattern when it comes to sizing, only really increasing in premium at sizes past 14. This leads us to conclude that desirability of certain styles may be more important in determining premiums for \emph{Yeezy}.
+
+
+
+# Appendix 
+```{r appendix, echo=FALSE, dpi=300}
+library(dplyr)
+
+## resale premium
+map_1 = plot_usmap(data = state_year_aggs %>% filter(year=="2017"), values = "avg_resale_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Resale Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure C: 2017 Average Resale Premium by State")
+
+map_2 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "avg_resale_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Resale Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure D: 2018 Average Resale Premium by State")
+
+map_3 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "avg_resale_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Resale Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure E: 2019 Average Resale Premium by State")
+
+## total orders
+
+# column is in millions so we gotta * 1000000
+state_year_aggs$State_pop_year = state_year_aggs$State_pop_year*1000000
+state_year_aggs$orders_per_capita = state_year_aggs$total_order_count / state_year_aggs$State_pop_year
+state_year_aggs$orders_per_10000 = 10000*(state_year_aggs$total_order_count / state_year_aggs$State_pop_year)
+state_year_aggs$orders_income_fixed = (state_year_aggs$total_order_count / state_year_aggs$disposable_per_cap_income)
+
+map_4 = plot_usmap(data = state_year_aggs %>% filter(year=="2017"), values = "orders_per_10000", color = "red") + 
+  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure A: 2017 Total Order Count per 10000 Persons")
+
+
+map_6 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "orders_per_10000", color = "red") + 
+  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "2019 Total Order Count per 10000 Persons")
+
+
+map_4
+map_6 
+map_1
+map_2
+map_3
+
+
+
+premium_size_brand = shoe_data %>%
+  group_by(shoe_size, brand) %>%
+  summarise(avg_resale_premium = mean(resale_premium_percent)) 
+
+plot_premium_size_brand = ggplot(premium_size_brand) +
+    geom_line(aes(x=shoe_size, y=avg_resale_premium , group = brand, color = brand)) +
+    ylab("Average Resale Premium")+
+    scale_x_continuous("Shoe Size", labels = as.character(premium_size_brand$shoe_size), breaks = premium_size_brand$shoe_size) + ggtitle("Figure F: Average Premium by Shoe Size") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5)) 
+
+plot_premium_size_brand
+
+
+```
 
 
 
