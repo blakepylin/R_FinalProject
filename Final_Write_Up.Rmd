@@ -7,7 +7,7 @@ urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE, results='hide', message=FALSE, warning=FALSE)
 library(tidyverse)
 library(lubridate)
 library(zoo)
@@ -19,6 +19,7 @@ library(randomForest)
 library(modelr)
 library(caret)
 library(gamlr)
+theme_set(theme_minimal())
 ```
 
 # Abstract
@@ -46,13 +47,21 @@ specific sneaker. Many characteristics, such as colorway[^1], brand, size, and m
 
 # Methodology
 
+## Part 1: Data Descriptions
+
+The final dataset used in this project is located in `data/shoe_final.csv`
+
+Scripts used to merge variables and clean data are located in `r/`
+
 The specific shoe data for this project was collected from the popular resale website [StockX][id3]. The dataset contains the details of 99,956 orders of \emph{Yeezy} and \emph{Nike X Off-White} shoes made on StockX from September 2017 to February 2019. The variables associated with orders are: \emph{Buyer Region} (State), \emph{Order Date}, \emph{Brand}, \emph{Shoe Name}, \emph{Retail Price}, \emph{Sale Price}, \emph{Release Date}, and \emph{Size}.
 
 \emph{Premium} was created from this initial dataset using the formula described in the previous section. 
 
-We collected additional variables regarding characteristics of each shoe including: \emph{Material}, \emph{Lace Type}. \emph{Primary Color}, \emph{Secondary Color}, and \emph{Tertiary Color}.
+We collected additional variables regarding characteristics of each shoe including: \emph{Material}, \emph{Lace Type}. \emph{Primary Color}, \emph{Secondary Color}, and \emph{Tertiary Color}, 
 
 Because certain buying choices could be reflective of economic conditions, we added the variables: \emph{USA Monthly Retail Sales} (Monthly), \emph{State Disposable Income per Capita} (Yearly), and \emph{State Population} (Yearly)
+
+A quick glance at monthly order volume by brand (\emph{Figure 1}), reveals a definite seasonal pattern, with orders spiking for both brands around the holiday season in both 2017 and 2018. The data also exhibit non-seasonal spikes in order numbers that appear to be linked to specific product release dates and restocks. For example, we believe the July 2018 spike in \emph{Yeezy} orders could be associated with the late June release of the \emph{350 V2 "Butter”}. It should be noted that the steep decline in orders around February 2019 is due to the data ending in the middle of the month. 
 
 ```{r visualizations, echo=FALSE, dpi=300}
 shoe_data <- read.csv("data/shoe_final.csv")
@@ -67,16 +76,116 @@ sales_vol = sales_vol %>%
   mutate(total_orders = cumsum(monthly_orders))
 
 ggplot(sales_vol) +
-  geom_line(aes(x=Year_month,y=monthly_orders, group = brand, color = brand)) + labs(y = " Order Volume (Monthly)", x = "Date") + ggtitle("Monthly Order Volume, Over Time") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700"))
+  geom_line(aes(x=Year_month,y=monthly_orders, group = brand, color = brand)) + labs(y = " Order Volume", x = "Date") + ggtitle("Figure 1: Monthly Order Volume, Over Time") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + guides(color = guide_legend(reverse = TRUE, title="Brand"))
+
+
+sales_dollars = shoe_data %>%
+  group_by(brand, Year_month) %>%
+  summarise(monthly_sales = sum(sale_price))
+sales_dollars = sales_dollars %>%
+  group_by(brand) %>%
+  mutate(total_sales = cumsum(monthly_sales))
 
 
 ```
+
+We also wanted to address any geographical component to order volume. After mapping orders, we noticed that Oregon had a disproportional share of orders not explained by population. As shown in \emph{Figure 2}, when controlled for population, Oregon still seems to order the most sneakers out of any state. \emph{Figure 2} displays orders in 2018, but the effect is still pronounced in 2017 and 2019. The maps for these two years have been included in the appendix as \emph{Figure A} and \emph{Figure B}, respectively. 
+
+```{r visualizations2, echo=FALSE, dpi=300}
+shoe_data$resale_premium = shoe_data$sale_price - shoe_data$retail_price
+shoe_data$resale_premium_percent = 100*(shoe_data$resale_premium / shoe_data$retail_price)
+
+brand_premium = shoe_data %>%
+  group_by(brand, Year_month) %>%
+  summarise(average_premium = mean(resale_premium_percent))
+
+time_elapse = shoe_data %>%
+  mutate(time_stamp2=mdy(shoe_data$release_date), .before=release_date)
+
+time_elapse$time_elapsed = as.numeric(as.Date(time_elapse$time_stamp) - as.Date(time_elapse$time_stamp2))
+
+time_elapse$time_elapsed[time_elapse$time_elapsed < 0] <- 0
+
+time_elapse = time_elapse%>%
+  select(resale_premium, resale_premium_percent, brand, time_elapsed)
+
+# We're looking at a sales premium percent change
+resale_prem = shoe_data %>%
+  group_by(year = year(time_stamp), buyer_region) %>%
+  summarise(avg_resale_premium = mean(resale_premium_percent)) %>%
+  select(state = buyer_region, year, avg_resale_premium)
+
+total_order_count = shoe_data %>%
+  group_by(year = year(time_stamp), buyer_region) %>%
+  summarise(total_order_count = n()) %>%
+  select(state = buyer_region, year, total_order_count)
+
+state_pop_income = distinct(shoe_data %>%
+                              group_by(buyer_region, year) %>%
+                              select(year, buyer_region, State_pop_year, disposable_per_cap_income) %>%
+                              arrange(buyer_region, year))
+
+state_year_aggs = merge(merge(resale_prem, total_order_count, by = c("state", "year")), state_pop_income, by.x = c("state","year"), by.y=c("buyer_region","year"), all.x = TRUE)
+
+## total orders
+
+# column is in millions so we gotta * 1000000
+state_year_aggs$State_pop_year = state_year_aggs$State_pop_year*1000000
+state_year_aggs$orders_per_capita = state_year_aggs$total_order_count / state_year_aggs$State_pop_year
+state_year_aggs$orders_per_10000 = 10000*(state_year_aggs$total_order_count / state_year_aggs$State_pop_year)
+state_year_aggs$orders_income_fixed = (state_year_aggs$total_order_count / state_year_aggs$disposable_per_cap_income)
+
+
+
+map_5 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "orders_per_10000", color = "red") + 
+  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure 2: 2018 Total Order Count per 10000 Persons")
+
+map_5
+```
+
+After looking at order volume, we then decided to turn our attention to premiums. Over the entire data set, \emph{Nike X Off-White} has around a 284\% premium and \emph{Yeezy} has a premium of around 64\%. 
+
+Plotting the average premium over time, we can see that there again appears to be a seasonality effect. \emph{Figure 3} displays the average premium by brand over time. Interestingly, the average premium seems to dip for each brand around the holiday season. This effect could be due to a saturation of sellers trying to take advantage of the holiday season and new releases/restocks of shoes. The downward trend of premiums over time could be due to a variety of factors: possibly more people are selling on StockX over time, driving premiums down as sellers compete for consumers. Another factor driving down premiums could be that \emph{Yeezy} and \emph{Nike X Off-White} are putting out more stock to keep up with demand, driving premiums down on the demand side. 
+
+
+```{r visualizations3, echo=FALSE, dpi=300}
+shoe_data$resale_premium = shoe_data$sale_price - shoe_data$retail_price
+shoe_data$resale_premium_percent = 100*(shoe_data$resale_premium / shoe_data$retail_price)
+
+brand_premium = shoe_data %>%
+  group_by(brand, Year_month) %>%
+  summarise(average_premium = mean(resale_premium_percent))
+
+brand_premium2 = shoe_data %>%
+  group_by(brand) %>%
+  summarise(average_premium = mean(resale_premium_percent))
+
+ggplot(brand_premium) +
+  geom_line(aes(x=Year_month,y=average_premium, group = brand, color = brand)) + labs(y = "Average Premium (%)", x = "Date") + ggtitle("Figure 3: Monthly Average Premium, Over Time") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + guides(color = guide_legend(reverse = FALSE, title="Brand"))
+
+time_elapse = shoe_data %>%
+  mutate(time_stamp2=mdy(shoe_data$release_date), .before=release_date)
+
+time_elapse$time_elapsed = as.numeric(as.Date(time_elapse$time_stamp) - as.Date(time_elapse$time_stamp2))
+
+time_elapse$time_elapsed[time_elapse$time_elapsed < 0] <- 0
+
+time_elapse = time_elapse%>%
+  select(resale_premium, resale_premium_percent, brand, time_elapsed)
+
+  
+
+```
+
+Because of the geographical effects seen in Oregon with order volume in \emph{Figure 2}. We decided to investigate the geographical effects of resale premiums. We found that in 2017, Kentucky had an unusually high average premium. In 2019, both Utah and Hawaii carried larger average premiums. Maps displaying the average premiums by state can be found in the appendix as \emph{Figure C}, \emph{Figure D}, and \emph{Figure E}. We determined that the high average premium in Kentucky in 2017 was caused by a single sale of sneakers that carried a 2000% premium. The reasons for the higher average premiums in Utah and Hawaii appear to related to tastes. Both of these states had relatively small order volumes, and the majority of the sneakers purchased were \emph{Nike X Off-White} which typically have higher premiums than \emph{Yeezy}. 
+
+
+
+
+
 
 (We should drop variables from the CSV if we're not going to use them)
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
 
 [id1]: https://www.nbcnews.com/news/nbcblk/sneakers-are-hot-resellers-are-making-living-coveted-models-rcna3619
 [id2]: https://www.nbcnews.com/news/nbcblk/sneakers-generated-70b-last-year-black-retailers-saw-little-rcna3546
