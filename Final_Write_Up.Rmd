@@ -53,7 +53,7 @@ The final dataset used in this project is located in `data/shoe_final.csv`
 
 Scripts used to merge variables and clean data are located in `r/`
 
-The specific shoe data for this project was collected from the popular resale website [StockX][id3]. The dataset contains the details of 99,956 orders of \emph{Yeezy} and \emph{Nike X Off-White} shoes made on StockX from September 2017 to February 2019. The variables associated with orders are: \emph{Buyer Region} (State), \emph{Order Date}, \emph{Brand}, \emph{Sneaker Name}, \emph{Retail Price}, \emph{Sale Price}, \emph{Release Date}, and \emph{Size} (StockX only lists shoes in terms of mens sizes).
+The specific shoe data for this project was collected from the popular resale website [StockX][id3]. The dataset contains the details of 99,956 orders of \emph{Yeezy} and \emph{Nike X Off-White} shoes made on StockX from September 2017 to February 2019. The variables associated with orders are: \emph{Buyer Region} (State), \emph{Order Date}, \emph{Brand}, \emph{Sneaker Name}, \emph{Retail Price}, \emph{Sale Price}, \emph{Release Date}, and \emph{Size} (StockX only lists shoes in terms of mens' sizes).
 
 \emph{Premium} was created from this initial dataset using the formula described in the previous section. 
 
@@ -256,7 +256,7 @@ So what does this tell us? Well, if a seller wants to maximize their premium the
 
 ## Back on the Oregon Trail
 
-Adressing the "Oregon Issue", we re-grpahed the order numbers and controlled for disposable income per capita of each state. Meaning we were trying to account for any income-related effects as to why Oregon had such a high number of orders. As you can see in \emph{Figure 6}, it appears that even after controlling for income, Oregon still has a disproportionate amount of orders compared to the rest of the 50 states. 
+Addressing the "Oregon Issue", we re-grpahed the order numbers and controlled for disposable income per capita of each state. Meaning we were trying to account for any income-related effects as to why Oregon had such a high number of orders. As you can see in \emph{Figure 6}, it appears that even after controlling for income, Oregon still has a disproportionate amount of orders compared to the rest of the 50 states. 
 
 What can we conclude from this? Well, there appears to be some sort of noise our data isn't accounting for. After doing a bit of research into Oregon, it seems that Oregon's [sneaker culture][id4] could possibly explain its large share of orders. The Portland area is also home to Nike and the American headquarters of Adidas. 
 
