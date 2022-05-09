@@ -21,7 +21,7 @@ library(caret)
 library(gamlr)
 theme_set(theme_minimal())
 theme_set(theme_minimal())
-knitr::opts_chunk$set(echo = TRUE,fig.align='center', fig.width = 6.5, fig.height =3.5)
+knitr::opts_chunk$set(echo = TRUE,fig.align='center', fig.width = 6.7, fig.height =4)
 ```
 
 # Abstract
@@ -215,6 +215,12 @@ The variable of least importance in the model was \emph{Buyer Region}. This show
 
 So what does this tell us? Well, if a seller wants to maximize their premium they should focus on selling \emph{Nike X Off-White} sneakers in sizes 15 and above during lulls in holidays and restocks/releases. Obviously, one cannot corner market on abnormal shoe sizes in the right tail, so a more reasonable strategy would be to focus on selling sneakers in the 8-10 range, focusing on full sizes. \emph{Yeezy} sneakers don't seem to have a similar pattern when it comes to sizing, only really increasing in premium at sizes past 14. This leads us to conclude that desirability of certain styles may be more important in determining premiums for \emph{Yeezy}.
 
+## Back to Oregon
+
+Adressing the "Oregon Issue", we re-grpahed the order numbers and controlled for disposable income per capita of each state. Meaning we were trying to account for any income-related effects as to why Oregon had such a high number of orders. As you can see in \emph{Figure 6}, it appears that even after controlling for income, Oregon still has a disproportionate amount of orders compared to the rest of the 50 states. 
+
+What can we conclude from this? Well, there appears to be some sort of noise our data isn't accounting for. After doing a bit of research into Oregon, it seems that Oregon's [sneaker culture][id4] could possibly explain its large share of orders. The Portland area is also home to Nike and the American headquarters of Adidas. 
+
 
 
 # Appendix 
@@ -283,4 +289,5 @@ plot_premium_size_brand
 [id1]: https://www.nbcnews.com/news/nbcblk/sneakers-are-hot-resellers-are-making-living-coveted-models-rcna3619
 [id2]: https://www.nbcnews.com/news/nbcblk/sneakers-generated-70b-last-year-black-retailers-saw-little-rcna3546
 [id3]: https://stockx.com/
+[id4]: https://sneakerweekpdx.com/
 [^1]: Colorway is a term used to quickly sum up the colors of the sneakers, in our dataset we have colorway categorized as primary, secondary and tertiary colors.
