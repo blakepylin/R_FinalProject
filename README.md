@@ -1,2 +1,2 @@
-# R_FinalProject
-Final Project for ECO395M - Brendan, Blake, Jayme
+# StockX_Predictions
+Final Project for ECO 395M: Data Mining and Statistical Learning - Jayme Gerring, Blake Lin, Brendan Ok 
