@@ -1,0 +1,151 @@
+---
+title: "Models"
+author: ""
+date: ""
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results='hide', message=FALSE, warning=FALSE)
+library(tidyverse)
+library(lubridate)
+library(zoo)
+library(usmap)
+library(rpart)
+library(rpart.plot)
+library(rsample) 
+library(randomForest)
+library(modelr)
+library(caret)
+library(gamlr)
+
+```
+
+
+
+```{r data cleaning again}
+shoe_data = read_csv("data/shoe_data.csv", show_col_types = FALSE)
+monthly_retail_df = read_csv("data/monthly_retail.csv",show_col_types = FALSE)
+sp_index_df = read_csv("data/sp_index_df.csv",show_col_types = FALSE)
+state_pop_income = read_csv("data/state_pop_income.csv",show_col_types = FALSE)
+ncaa_teams = read.csv("data/ncaa.csv")
+shoe_characteristics = read.csv("data/shoe_characteristics.csv")
+
+#reformat dates, columns, misc
+shoe_data = shoe_data %>% 
+  mutate(order_date=mdy(shoe_data$order_date), .before=order_date) %>%
+  mutate(release_date=mdy(shoe_data$release_date), .before=release_date)
+shoe_data$order_year = year(shoe_data$order_date)
+shoe_data$Year_month <- format(as.Date(shoe_data$order_date), "%Y-%m") # wanted this column to use later
+
+sp_index_df = sp_index_df %>%
+  mutate(date=mdy(sp_index_df$date), .before=date) %>%
+  select(date, sp_index)
+
+monthly_retail_df = monthly_retail_df %>%
+  mutate(period=mdy(monthly_retail_df$Period), .before=Period) %>%
+  select(period, sporting_goods, monthly_retail)
+
+state_pop_income = state_pop_income %>%
+  mutate(state_pop_year = State_pop_year*1000000) %>%
+  select(year, buyer_region, state_pop_year, disposable_per_cap_income)
+  
+#drop commas and dollar signs
+shoe_data$sale_price = as.numeric(gsub("[\\$,]", "", shoe_data$sale_price))
+shoe_data$retail_price = as.numeric(gsub("[\\$,]", "", shoe_data$retail_price))
+state_pop_income$disposable_per_cap_income = as.numeric(gsub("[\\$,]", "", state_pop_income$disposable_per_cap_income))
+
+
+##### merging
+
+# for monthly indexes we have to fill in the dates
+monthly_retail_df_test = monthly_retail_df
+
+monthly_retail_df = monthly_retail_df %>%
+  mutate(floor = floor_date(monthly_retail_df$period, "month")) %>%
+  mutate(ceiling = ceiling_date(monthly_retail_df$period, "month") - days(1))
+
+monthly_retail_df = monthly_retail_df %>%
+  rowwise() %>%
+  do(data.frame(monthly_retail = .$monthly_retail, dates = seq(.$floor, .$ceiling, by = 1), sporting_goods = .$sporting_goods, date = seq(.$floor, .$ceiling, by = 1))) %>%
+  select(dates, monthly_retail, sporting_goods)
+
+#team performance stuff
+ncaa_teams = ncaa_teams %>%
+  filter(To >= 2019 & From <= 2019) 
+
+# aggregate teams by state
+agg_ncaa = data.frame(
+  ncaa_teams %>%
+    group_by(State) %>%
+    summarise(across(c("Overall_Win_Loss_Percentage", "Win_Percentage_2019","Win_Percentage_2018", "Yrs", "AP_Rank_2019", "AP_Ranked_2018"), ~ mean(.x, na.rm = TRUE)))
+  ,
+  ncaa_teams %>%
+    group_by(State) %>%
+    summarise(across(c("NCAA_Tournament_Appearances", "Final_Four_Appearances","NCAA_Championships", "AP_Final_Poll_Appearances"), ~ sum(.x, na.rm = TRUE)))
+)
+agg_ncaa$AP_Ranked_2018[is.na(agg_ncaa$AP_Ranked_2018)] = 0
+
+
+# merge everything
+shoe_data = shoe_data %>%
+  left_join(monthly_retail_df, by=c("order_date" = "dates")) %>%
+  left_join(sp_index_df, by=c("order_date" = "date")) %>%
+  left_join(agg_ncaa, by=c("buyer_region" = "State")) %>%
+  left_join(shoe_characteristics, by=c("sneaker_name" = "Shoe")) %>%
+  left_join(state_pop_income, by=c("buyer_region", "order_year" = "year")) %>%
+  fill(sp_index) %>%
+  select(-ends_with(".1"))
+  
+shoe_data
+  
+```
+
+
+```{r linear model, cache=TRUE, echo=FALSE}
+#set.seed(349385)
+
+premium_data = shoe_data %>%
+  mutate(premium = (sale_price - retail_price)/retail_price) %>%
+  mutate_if(is.character, as.factor)
+
+# split data into training and testing
+premium_split = initial_split(premium_data, prop=0.8)
+premium_train = training(premium_split)
+premium_test  = testing(premium_split)
+
+lm_1 = lm(premium ~ (shoe_size)^2 + monthly_retail + sp_index + Win_Percentage_2019:Year_month + Yrs + AP_Ranked_2018:Year_month + Final_Four_Appearances + AP_Final_Poll_Appearances + + disposable_per_cap_income + brand + sporting_goods + Overall_Win_Loss_Percentage + Win_Percentage_2018:Year_month + AP_Rank_2019:Year_month + NCAA_Tournament_Appearances + NCAA_Championships + heel_to_toe_cm + state_pop_year, data=premium_train)
+          
+
+rmse(lm_1, premium_test)
+
+
+
+```
+
+
+```{r prediction model, cache=TRUE, echo=FALSE}
+# a single tree
+premium_tree = rpart(premium ~ sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data = premium_train,
+                     control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
+
+#rpart.plot(premium_tree, digits=-5, type=4, extra=1)
+
+# forest 
+premium_forest = randomForest(premium ~ sneaker_name + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=premium_train, control = rpart.control(cp = 0.002), ntrees = 300, importance=TRUE, na.action = na.omit)
+
+# variable importance measures
+vi = varImpPlot(premium_forest, type=1, main = "Figure 4: Random Forest Variable Importance")
+
+# # forest pd plot
+
+partialPlot(premium_forest, premium_test, 'shoe_size', las=1, main=paste("Figure 5: Partial Dependence on Shoe Size"))
+
+# finished model building: compare RMSE
+rmse_premium_tree = rmse(premium_tree, premium_test)
+rmse_premium_forest = rmse(premium_forest, premium_test)
+
+rmse_premium_tree
+rmse_premium_forest
+```
