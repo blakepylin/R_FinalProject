@@ -104,10 +104,12 @@ shoe_data
 
 
 ```{r linear model, cache=TRUE, echo=FALSE}
-#set.seed(349385)
+set.seed(349385)
+#options(scipen=10000)
 
 premium_data = shoe_data %>%
-  mutate(premium = (sale_price - retail_price)/retail_price) %>%
+  mutate(premium = sale_price - retail_price) %>%
+  mutate(relative_premium = (sale_price - retail_price)/retail_price) %>%
   mutate_if(is.character, as.factor)
 
 # split data into training and testing
@@ -115,10 +117,26 @@ premium_split = initial_split(premium_data, prop=0.8)
 premium_train = training(premium_split)
 premium_test  = testing(premium_split)
 
-lm_1 = lm(premium ~ (shoe_size)^2 + monthly_retail + sp_index + Win_Percentage_2019:Year_month + Yrs + AP_Ranked_2018:Year_month + Final_Four_Appearances + AP_Final_Poll_Appearances + + disposable_per_cap_income + brand + sporting_goods + Overall_Win_Loss_Percentage + Win_Percentage_2018:Year_month + AP_Rank_2019:Year_month + NCAA_Tournament_Appearances + NCAA_Championships + heel_to_toe_cm + state_pop_year, data=premium_train)
+lm_1 = lm(relative_premium ~ (shoe_size)^2 + primary_color + secondary_color + Win_Percentage_2019:Year_month + AP_Ranked_2018:Year_month + AP_Final_Poll_Appearances + + disposable_per_cap_income:order_year + brand + Overall_Win_Loss_Percentage + Win_Percentage_2018:Year_month + AP_Rank_2019:Year_month + NCAA_Championships + heel_to_toe_cm + state_pop_year:order_year + sp_index + monthly_retail:Year_month, data=premium_train)
           
-
 rmse(lm_1, premium_test)
+summary(lm_1)
+
+#not as good as random forest and we can interpret the standard error to be pretty high given a majority of our dataset consists of the yeezys. (what percent of our data pays little to no premium for shoes?) on the other hand, i'd like to run a regression exclusively on the nikes.
+
+
+yeezys = premium_data %>%
+  filter(brand == "Yeezy")
+
+yeezy_split = initial_split(yeezys, prop=0.8)
+yeezy_train = training(yeezy_split)
+yeezy_test  = testing(yeezy_split)
+
+lm_2 = lm(relative_premium ~ (shoe_size)^2 + primary_color + secondary_color + Win_Percentage_2019:order_year + AP_Ranked_2018:order_year + AP_Final_Poll_Appearances + + disposable_per_cap_income:order_year + Overall_Win_Loss_Percentage + Win_Percentage_2018:order_year + AP_Rank_2019:order_year + NCAA_Championships + heel_to_toe_cm + state_pop_year:order_year + sp_index + monthly_retail:Year_month, data=yeezy_train)
+          
+rmse(lm_2, yeezy_test)
+summary(lm_2)
+
 
 
 
