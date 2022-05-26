@@ -1,0 +1,258 @@
+---
+title: "Models"
+author: ""
+date: ""
+output: pdf_document
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, results='hide', message=FALSE, warning=FALSE)
+library(tidyverse)
+library(lubridate)
+library(zoo)
+library(usmap)
+library(rpart)
+library(rpart.plot)
+library(rsample) 
+library(randomForest)
+library(modelr)
+library(caret)
+library(gamlr)
+library(knitr)
+
+```
+
+
+
+```{r data cleaning again}
+shoe_data = read_csv("data/shoe_data.csv", show_col_types = FALSE)
+monthly_retail_df = read_csv("data/monthly_retail.csv",show_col_types = FALSE)
+sp_index_df = read_csv("data/sp_index_df.csv",show_col_types = FALSE)
+state_pop_income = read_csv("data/state_pop_income.csv",show_col_types = FALSE)
+ncaa_teams = read.csv("data/ncaa.csv")
+shoe_characteristics = read.csv("data/shoe_characteristics.csv")
+
+#reformat dates, columns, misc
+shoe_data = shoe_data %>% 
+  mutate(order_date=mdy(shoe_data$order_date), .before=order_date) %>%
+  mutate(release_date=mdy(shoe_data$release_date), .before=release_date)
+shoe_data$order_year = year(shoe_data$order_date)
+shoe_data$Year_month <- format(as.Date(shoe_data$order_date), "%Y-%m") # wanted this column to use later
+
+sp_index_df = sp_index_df %>%
+  mutate(date=mdy(sp_index_df$date), .before=date) %>%
+  select(date, sp_index)
+
+monthly_retail_df = monthly_retail_df %>%
+  mutate(period=mdy(monthly_retail_df$Period), .before=Period) %>%
+  select(period, sporting_goods, monthly_retail)
+
+state_pop_income = state_pop_income %>%
+  mutate(state_pop_year = State_pop_year*1000000) %>%
+  select(year, buyer_region, state_pop_year, disposable_per_cap_income)
+  
+#drop commas and dollar signs
+shoe_data$sale_price = as.numeric(gsub("[\\$,]", "", shoe_data$sale_price))
+shoe_data$retail_price = as.numeric(gsub("[\\$,]", "", shoe_data$retail_price))
+state_pop_income$disposable_per_cap_income = as.numeric(gsub("[\\$,]", "", state_pop_income$disposable_per_cap_income))
+
+
+##### merging
+
+# for monthly indexes we have to fill in the dates
+monthly_retail_df_test = monthly_retail_df
+
+monthly_retail_df = monthly_retail_df %>%
+  mutate(floor = floor_date(monthly_retail_df$period, "month")) %>%
+  mutate(ceiling = ceiling_date(monthly_retail_df$period, "month") - days(1))
+
+monthly_retail_df = monthly_retail_df %>%
+  rowwise() %>%
+  do(data.frame(monthly_retail = .$monthly_retail, dates = seq(.$floor, .$ceiling, by = 1), sporting_goods = .$sporting_goods, date = seq(.$floor, .$ceiling, by = 1))) %>%
+  select(dates, monthly_retail, sporting_goods)
+
+#team performance stuff
+ncaa_teams = ncaa_teams %>%
+  filter(To >= 2019 & From <= 2019) 
+
+# aggregate teams by state
+agg_ncaa = data.frame(
+  ncaa_teams %>%
+    group_by(State) %>%
+    summarise(across(c("Overall_Win_Loss_Percentage", "Win_Percentage_2019","Win_Percentage_2018", "Yrs", "AP_Rank_2019", "AP_Ranked_2018"), ~ mean(.x, na.rm = TRUE)))
+  ,
+  ncaa_teams %>%
+    group_by(State) %>%
+    summarise(across(c("NCAA_Tournament_Appearances", "Final_Four_Appearances","NCAA_Championships", "AP_Final_Poll_Appearances"), ~ sum(.x, na.rm = TRUE)))
+)
+agg_ncaa$AP_Ranked_2018[is.na(agg_ncaa$AP_Ranked_2018)] = 0
+
+
+# merge everything
+shoe_data = shoe_data %>%
+  left_join(monthly_retail_df, by=c("order_date" = "dates")) %>%
+  left_join(sp_index_df, by=c("order_date" = "date")) %>%
+  left_join(agg_ncaa, by=c("buyer_region" = "State")) %>%
+  left_join(shoe_characteristics, by=c("sneaker_name" = "Shoe")) %>%
+  left_join(state_pop_income, by=c("buyer_region", "order_year" = "year")) %>%
+  fill(sp_index) %>%
+  select(-ends_with(".1"))
+  
+```
+
+
+```{r linear model, cache=TRUE, echo=FALSE}
+set.seed(349385)
+#options(scipen=10000)
+
+premium_data = shoe_data %>%
+  mutate(premium = sale_price - retail_price) %>%
+  mutate(relative_premium = (sale_price - retail_price)/retail_price) %>%
+  mutate_if(is.character, as.factor)
+
+# split data into training and testing
+premium_split = initial_split(premium_data, prop=0.8)
+premium_train = training(premium_split)
+premium_test  = testing(premium_split)
+
+lm_1 = lm(relative_premium ~ (shoe_size)^2 + primary_color + secondary_color + Win_Percentage_2019:order_year + AP_Ranked_2018:order_year + AP_Final_Poll_Appearances + disposable_per_cap_income:order_year + brand + Overall_Win_Loss_Percentage + Win_Percentage_2018:order_year + AP_Rank_2019:order_year + NCAA_Championships + state_pop_year:order_year + sp_index + monthly_retail:Year_month, data=premium_train)
+          
+rmse(lm_1, premium_test)
+#summary(lm_1)
+
+#not as good as random forest and we can interpret the standard error to be pretty high given that a majority of our dataset consists of the yeezys. (what percent of our data pays little to no premium for shoes?) color seems to matter a lot. of all the other variables we collected, overall win loss percentage of ncaa teams in each state seem to matter, but not the year specific ones. if there is a cultural link between basketball and shoes, it must take time to develop and wont change over the course of a few years.(who are the winningest states?) stock market indexes that track consumer and retail markets are not a good predictor of resale shoe premium even when controlled for year-month. neither is income data when controlled for year.
+
+yeezys = premium_data %>%
+  filter(brand == "Yeezy")
+
+yeezy_split = initial_split(yeezys, prop=0.8)
+yeezy_train = training(yeezy_split)
+yeezy_test  = testing(yeezy_split)
+
+lm_2 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=yeezy_train)
+          
+rmse(lm_2, yeezy_test)
+#summary(lm_2)
+#summary(yeezys$relative_premium)
+sd(yeezys$relative_premium)
+
+## much lower rmse on par with random forest 
+
+nikes = premium_data %>%
+  filter(brand == "Off-White")
+
+nike_split = initial_split(nikes, prop=0.8)
+nike_train = training(nike_split)
+nike_test  = testing(nike_split)
+
+lm_3 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=nike_train)
+          
+rmse(lm_3, nike_test)
+#summary(lm_3)
+summary(nikes$relative_premium)
+sd(nikes$relative_premium)
+
+# the off-white shoes not only demand a much higher resale premium, but it also varies much more significantly than yeezys.the strongest predictors for both are shoe characteristics such and the state's historical ncaa basketball team performance, however we can much more precisely predict the resale premium of yeezys using the same linear model than for off-whites. notably for the off-white shoes, team perforamnce and shoe size are significantly more important than for yeezys.
+
+
+
+
+```
+
+
+```{r prediction model, cache=TRUE, echo=FALSE}
+# a single tree
+premium_tree = rpart(relative_premium ~ shoe_size + Year_month + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data = premium_train,
+                     control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
+
+#rpart.plot(premium_tree, digits=-5, type=4, extra=1)
+
+# forest 
+premium_forest = randomForest(relative_premium ~ brand + shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=premium_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
+
+premium_forest2 = randomForest(relative_premium ~ brand + shoe_size + Year_month  + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data=premium_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
+
+# variable importance measures
+vi = varImpPlot(premium_forest, type=1, main = "Figure 4: Random Forest Variable Importance")
+
+vi2 = varImpPlot(premium_forest2, type=1, main = "Figure 4: Random Forest Variable Importance")
+
+# # forest pd plot
+#partialPlot(premium_forest, premium_test, 'shoe_size', las=1, main=paste("Figure 5: Partial Dependence on Shoe Size"))
+
+# finished model building: compare RMSE
+rmse_premium_tree = rmse(premium_tree, premium_test)
+rmse_premium_forest = rmse(premium_forest, premium_test)
+rmse_premium_forest2 = rmse(premium_forest2, premium_test)
+
+plot(premium_forest)
+
+rmse_premium_tree
+rmse_premium_forest
+rmse_premium_forest2
+
+rmse_results = data.frame(
+  Model = c("Tree","Forest","Forest with NCAA Data"),
+  RMSE = c(rmse_premium_tree, rmse_premium_forest, rmse_premium_forest2)
+)
+kable(rmse_results)
+
+
+# not including brand in the model distorts the rmse. since the majority of the shoes are yeezys, not controlling for brand causes error to bias downwards due to yeezys typically demanding lower premiums.
+
+```
+
+
+```{r brand specific model, cache=TRUE, echo=FALSE}
+
+# a single tree
+yeezy_tree = rpart(relative_premium ~ shoe_size + Year_month + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data = yeezy_train, control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
+
+nike_tree = rpart(relative_premium ~ shoe_size + Year_month + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data = yeezy_train, control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
+
+#rpart.plot(premium_tree, digits=-5, type=4, extra=1)
+
+# forest 
+yeezy_forest = randomForest(relative_premium ~ shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=yeezy_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
+
+nike_forest = randomForest(relative_premium ~ shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=nike_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
+
+yeezy_forest2 = randomForest(relative_premium ~ shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data=yeezy_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
+
+nike_forest2 = randomForest(relative_premium ~ shoe_size + Year_month  + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data=nike_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
+
+# variable importance measures
+vi3 = varImpPlot(yeezy_forest, type=1, main = "Yeezy Random Forest Variable Importance")
+
+vi4 = varImpPlot(nike_forest, type=1, main = "Nike Random Forest Variable Importance")
+
+
+
+rmse_yeezy_tree = rmse(yeezy_tree, yeezy_test)
+rmse_yeezy_forest = rmse(yeezy_forest, yeezy_test)
+rmse_yeezy_forest2 = rmse(yeezy_forest2, yeezy_test)
+
+rmse_nike_tree = rmse(nike_tree, nike_test)
+rmse_nike_forest = rmse(nike_forest, nike_test)
+rmse_nike_forest = rmse(nike_forest2, nike_test)
+
+rmse_yeezy_tree
+rmse_yeezy_forest
+rmse_yeezy_forest2
+rmse_nike_tree
+rmse_nike_forest
+rmse_nike_forest2
+
+brand_rmse_results = data.frame(
+  Model = c("Yeezy Tree","Yeezy Forest","Yeezy Forest 2","Nike Tree","Nike Forest","Nike Forest 2"),
+  RMSE = c(rmse_yeezy_tree, rmse_yeezy_forest, rmse_yeezy_forest2, rmse_nike_tree, rmse_nike_forest, rmse_nike_forest2)
+)
+kable(brand_rmse_results)
+
+
+# huge improvement over the linear models. errors are not bad at all considering the typical resale premiums for the nike shoes. separating the brands really do tell the true story. the ncaa variables matter more for the nike shoes
+
+```
+
+

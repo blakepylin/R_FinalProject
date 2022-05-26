@@ -256,7 +256,7 @@ So what does this tell us? Well, if a seller wants to maximize their premium the
 
 ## Back on the Oregon Trail
 
-Addressing the "Oregon Issue", we re-grpahed the order numbers and controlled for disposable income per capita of each state. Meaning we were trying to account for any income-related effects as to why Oregon had such a high number of orders. As you can see in \emph{Figure 6}, it appears that even after controlling for income, Oregon still has a disproportionate amount of orders compared to the rest of the 50 states. 
+Addressing the "Oregon Issue", we re-graphed the order numbers and controlled for disposable income per capita of each state. Meaning we were trying to account for any income-related effects as to why Oregon had such a high number of orders. As you can see in \emph{Figure 6}, it appears that even after controlling for income, Oregon still has a disproportionate amount of orders compared to the rest of the 50 states. 
 
 What can we conclude from this? Well, there appears to be some sort of noise our data isn't accounting for. After doing a bit of research into Oregon, it seems that Oregon's [sneaker culture][id4] could possibly explain its large share of orders. The Portland area is also home to Nike and the American headquarters of Adidas. 
 
