@@ -7,7 +7,8 @@ urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, results='hide', message=FALSE, warning=FALSE)
+knitr::opts_chunk$set(echo = TRUE, results='hide', message=FALSE, warning=FALSE, dpi=300)
+
 library(tidyverse)
 library(lubridate)
 library(zoo)
@@ -24,8 +25,7 @@ library(knitr)
 ```
 
 
-
-```{r data cleaning again}
+```{r data cleaning again, echo=FALSE}
 shoe_data = read_csv("data/shoe_data.csv", show_col_types = FALSE)
 monthly_retail_df = read_csv("data/monthly_retail.csv",show_col_types = FALSE)
 sp_index_df = read_csv("data/sp_index_df.csv",show_col_types = FALSE)
@@ -99,69 +99,212 @@ shoe_data = shoe_data %>%
   fill(sp_index) %>%
   select(-ends_with(".1"))
   
+shoe_data = shoe_data %>%
+  mutate(premium = sale_price - retail_price) %>%
+  mutate(relative_premium = (sale_price - retail_price)/retail_price)
+
+
 ```
 
+# Abstract
 
-```{r linear model, cache=TRUE, echo=FALSE}
+This report focuses on the question of premiums gained from reselling sneakers on the popular website StockX. We were interested in finding what characteristics determine premiums, that is the percent change in sale price on StockX compared to the shoe's original retail price. Using Random Forest Classification methods, we were able to determine that sale date and shoe size were the most important determining characteristics in maximizing premium. We also developed the secondary question examining the over-representation of Oregon in StockX orders, we determined that Portland's sneaker culture may be responsible for its outlier status in the data. 
+
+
+
+# Introduction
+
+Pulling in [\$70 billion in 2020][id1], the sneaker market has a powerful influence within American retail. Because of the high demand for these sometimes rare and unique shoes, a powerful resale market has also emerged. The sneaker resale market was worth as much as [\$2 billion in 2019][id2], a figure that has only increased as more and more players try to get in on the sometimes over 2000% profit margin earned from the rarest of sneakers.
+
+\vspace{2mm} 
+
+As three certified *sneakerheads* we were interested in using machine learning methods to accurately predict the premiums that result from the sale of popular sneakers. 
+
+<!-- Price Premium is defined as: \vspace{5mm}  -->
+
+<!--  $\text{Relative Premium} = \frac{\text{Resale Price}(\$) - \text{Retail Price}(\$)}{\text{Retail Price}(\$)}$ -->
+
+<!--  \vspace{5mm}  -->
+
+Why is this relevant? Premiums are a quick and simple benchmark to measure the profitability and desirability of a specific sneaker. Many characteristics, such as colorway, brand, size, and material can make or break a shoe sale. The physical characteristics of shoes are not the only determining factors for premiums, much like other retail goods, shoe sales have a seasonality component as well. This makes understanding the timing of a sale crucial. Premiums can demonstrate to resellers which characteristics make a shoe more profitable. Premiums can also be useful to buyers: based on characteristics, what price is a good deal and what prices border on irrational? 
+
+
+
+# Methodology
+
+## Part I: Data Descriptions
+
+The final dataset used in this project is located in `data/shoe_final.csv`
+
+Scripts used to merge variables and clean data are located in `r/data_cleaning.R`
+
+The main data for this project was sourced from the popular online sneaker marketplace, [StockX][id3]. The dataset contains the details of 99,956 orders of \emph{Adidas Yeezy} and \emph{Nike x Off-White} shoes on StockX from September 2017 to February 2019. Each row represents a unique sale on the website. The variables associated with each sale are: \emph{Buyer Region} (State), \emph{Order Date}, \emph{Brand}, \emph{Sneaker Name}, \emph{Retail Price}, \emph{Sale Price}, \emph{Release Date}, and \emph{Size} (StockX lists shoes in mens' sizing).
+
+\emph{Premium} was created from this initial dataset using the difference between resale and retail price, and \emph{Relative Premium} is the relative change in price from retail to the eventual order price.
+
+We collected additional variables regarding characteristics of each shoe including: \emph{Material}, \emph{Lace Type}. \emph{Primary Color}, \emph{Secondary Color}, and \emph{Tertiary Color}. Primary color represents the dominant shade while secondary and tertiary colors are extra accent or trim colors associated with the sneaker. 
+
+Because preferences for shoes could depend on economic or personal financial conditions, we added the variables: \emph{Sporting Goods Index} (Monthly), \emph{USA Monthly Retail Sales Index} (Monthly), \emph{State Disposable Income per Capita} (Yearly), and \emph{State Population} (Yearly). These demographic variables were collected from the U.S. Census Bureau, the Federal Reserve, and the Bureau of Economic Analysis.
+
+To address the geographical component of our data, we figured that there is a cultural component to preferences in sneaker purchases. The emergence of a big resale market for exclusive Nike and Adidas shoes may be associated with interest in [athletics and basketball][id5]. After all, the designs of all of these shoes were either created with a purpose to either run of play basketball or derived from other sneakers made for that purpose. Included in our data is also the historic performance of each NCAA Division I basketball team aggregated by state. The variables used are: \emph{Overall Win Loss Percentage} \emph{Win Percentage 2019}, \emph{Win Percentage 2018}, \emph{NCAA Championships}, \emph{AP Final Poll} (Number of appearances on final AP rankings), \emph{AP Rank 2019} (Average ranking on final AP poll of each team), and \emph{AP Rank 2018}.
+
+
+## Part II: Summary Statistics
+
+```{r visualizations, echo=FALSE, dpi=300}
+
+summary = shoe_data %>% 
+  group_by(brand) %>%
+  summarize(min = min(relative_premium),
+            first_quantile = quantile(relative_premium)[2],
+            median=median(relative_premium),
+            mean=mean(relative_premium), 
+            third_quantile = quantile(relative_premium)[4],
+            max = max(relative_premium),
+            sample_size=length(relative_premium), 
+            sd = sd(relative_premium))
+
+kable(summary, format="latex")
+#kable(summary)
+
+ggplot(shoe_data, aes(x=brand, y=relative_premium)) +
+  geom_boxplot()
+#shoe_data[shoe_data$relative_premium < 0,][c('brand', 'relative_premium')]
+
+
+```
+The Nike x Off-White sneakers across the board demand much higher resale premiums and variability in price compared to the Adidas Yeezy shoes. In 557 Yeezy orders, we see cases where sale price of the shoe is lower than the retail price. There are no such cases in Nike orders.
+
+
+```{r visualizations2, echo=FALSE, dpi=300}
+
+time_elapse = shoe_data %>%
+  mutate(time_elapsed = as.numeric(as.Date(shoe_data$order_date) - as.Date(shoe_data$release_date)))
+
+time_elapse$time_elapsed[time_elapse$time_elapsed < 0] <- 0
+
+time_elapse = time_elapse%>%
+  select(premium, relative_premium, brand, time_elapsed)
+
+# We're looking at a sales premium percent change
+resale_prem = shoe_data %>%
+  group_by(year = year(order_date), buyer_region) %>%
+  summarise(avg_relative_premium = mean(relative_premium)) %>%
+  select(state = buyer_region, year, avg_relative_premium)
+
+total_order_count = shoe_data %>%
+  group_by(year = year(order_date), buyer_region) %>%
+  summarise(total_order_count = n()) %>%
+  select(state = buyer_region, year, total_order_count)
+
+state_year_aggs = merge(merge(resale_prem, total_order_count, by = c("state", "year")), state_pop_income, by.x = c("state","year"), by.y=c("buyer_region","year"), all.x = TRUE)
+
+## total orders
+
+# column is in millions so we gotta * 1000000
+
+state_year_aggs$orders_per_capita = state_year_aggs$total_order_count / state_year_aggs$state_pop_year
+
+state_year_aggs$orders_per_10000 = 10000*(state_year_aggs$total_order_count / state_year_aggs$state_pop_year)
+
+state_year_aggs$orders_income_fixed = (state_year_aggs$total_order_count / state_year_aggs$disposable_per_cap_income)
+
+## resale premium
+map_1 = plot_usmap(data = state_year_aggs %>% filter(year=="2017"), values = "avg_relative_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure C: 2017 Average Relative Premium by State")
+
+map_2 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "avg_relative_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure D: 2018 Average Relative Premium by State")
+
+map_3 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "avg_relative_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure E: 2019 Average Relative Premium by State")
+
+
+map_5 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "orders_per_10000", color = "red") + 
+  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure 2: 2018 Total Order Count per 10000 Persons")
+
+
+# map_1
+# map_2
+# map_3
+
+
+## make a table with premiums. consider moving the maps to the appendix
+## make boxplot of premiums by brand
+```
+
+After looking at order volume, we then decided to turn our attention to premiums. Over the entire data set, \emph{Nike X Off-White} has an average premium of around 284\% and \emph{Yeezy} has an average premium of around 64\%. 
+
+Plotting the average premium over time, we can see that there again appears to be a seasonality effect. \emph{Figure 3} displays the average premium by brand over time. Interestingly, the average premium seems to dip for each brand around the holiday season. This effect could be due to a saturation of sellers trying to take advantage of the holiday season and new releases/restocks of shoes. The downward trend of premiums over time could be due to a variety of factors: possibly more people are selling on StockX over time, driving premiums down as sellers compete for consumers. Another factor driving down premiums could be that \emph{Yeezy} and \emph{Nike X Off-White} are putting out more stock to keep up with demand, driving premiums down on the demand side. 
+
+
+```{r visualizations3, echo=FALSE, dpi=300}
+
+brand_premium = shoe_data %>%
+  group_by(brand, Year_month) %>%
+  summarise(average_relative_premium = mean(relative_premium))
+
+ggplot(brand_premium) +
+  geom_line(aes(x=Year_month,y=average_relative_premium, group = brand, color = brand)) + labs(y = "Average Relative Premium", x = "Year-Month") + ggtitle("Figure 3: Monthly Average Relative Premium, Over Time") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + guides(color = guide_legend(reverse = FALSE, title="Brand"))
+
+
+```
+
+Seasonal drop in average relative premium can probably be attributed to more Yeezys being sold proportianlly during holidays because it's a cheaper gift.?????
+
+
+
+```{r visualizations4, echo=FALSE, dpi=300}
+
+# Next we'll look at total sales volume (number of orders) per month as well as cumulative orders over time.
+sales_vol = shoe_data %>%
+  group_by(brand, Year_month) %>%
+  summarise(monthly_orders = n())
+sales_vol = sales_vol %>%
+  group_by(brand) %>%
+  mutate(total_orders = cumsum(monthly_orders))
+
+ggplot(sales_vol) +
+  geom_line(aes(x=Year_month,y=monthly_orders, group = brand, color = brand)) + labs(y = "Order Volume", x = "Date") + ggtitle("Figure 1: Monthly Order Volume") + labs(color='Brand') + scale_color_manual(values=c("#619CFF", "#E58700")) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + guides(color = guide_legend(reverse = TRUE, title="Brand"))
+
+
+sales_dollars = shoe_data %>%
+  group_by(brand, Year_month) %>%
+  summarise(monthly_sales = sum(sale_price))
+sales_dollars = sales_dollars %>%
+  group_by(brand) %>%
+  mutate(total_sales = cumsum(monthly_sales))
+
+## order volume is less important. move it to the botom of summary stats
+```
+A look at monthly order volume by brand (\emph{Figure 1}), reveals a definite seasonal pattern, with orders spiking for both brands around the holiday season in both 2017 and 2018. The data also exhibit non-seasonal spikes in order numbers that appear to be linked to specific product release dates and restocks. For example, we believe the July 2018 spike in \emph{Yeezy} orders could be associated with the late June release of the \emph{350 V2 "Butter”}. It should be noted that the steep decline in orders around February 2019 is due to the data ending in the middle of the month.
+
+
+## Part III: Random Forest Model
+
+Our goal is to determine the most important predictors that impact resale premium. Due to the large size of our data as well as heterogeneity of variable types, we decided to employ a random forest model. Since it's difficult to quantify personal preferences for purchasing sneakers, the random forest would be able to find and consider each interaction and combination of sneaker characteristics given our data. For our mode, our complexity parameter was set at 0.002 and we used 300 trees. For cross-validation, our data was split into training and testing sets, with 20\% of the data reserved for testing. 
+
+
+\emph{relative_premium} is this case is our dependent variable. With \emph{Sneaker Name}, \emph{Size}, \emph{Buyer Region} (State), \emph{Order Date} (grouped by month), \emph{Primary Color}, \emph{Secondary Color}, and \emph{Material} as our independent variables. The complexity parameter for our decision tree model was placed at .02, minimum observations for split at 300, and max depth at 4. For random forest, our complexity parameter was set at .002 and the number of trees set to 300. For cross-validation, our data was split into testing and training sets, with 20\% of the data reserved for testing.
+
+# Results
+
+## Overall Data
+```{r prediction model, cache=TRUE, echo=FALSE}
 set.seed(349385)
-#options(scipen=10000)
 
 premium_data = shoe_data %>%
-  mutate(premium = sale_price - retail_price) %>%
-  mutate(relative_premium = (sale_price - retail_price)/retail_price) %>%
   mutate_if(is.character, as.factor)
 
-# split data into training and testing
 premium_split = initial_split(premium_data, prop=0.8)
 premium_train = training(premium_split)
 premium_test  = testing(premium_split)
 
-lm_1 = lm(relative_premium ~ (shoe_size)^2 + primary_color + secondary_color + Win_Percentage_2019:order_year + AP_Ranked_2018:order_year + AP_Final_Poll_Appearances + disposable_per_cap_income:order_year + brand + Overall_Win_Loss_Percentage + Win_Percentage_2018:order_year + AP_Rank_2019:order_year + NCAA_Championships + state_pop_year:order_year + sp_index + monthly_retail:Year_month, data=premium_train)
-          
-rmse(lm_1, premium_test)
-#summary(lm_1)
 
-#not as good as random forest and we can interpret the standard error to be pretty high given that a majority of our dataset consists of the yeezys. (what percent of our data pays little to no premium for shoes?) color seems to matter a lot. of all the other variables we collected, overall win loss percentage of ncaa teams in each state seem to matter, but not the year specific ones. if there is a cultural link between basketball and shoes, it must take time to develop and wont change over the course of a few years.(who are the winningest states?) stock market indexes that track consumer and retail markets are not a good predictor of resale shoe premium even when controlled for year-month. neither is income data when controlled for year.
-
-yeezys = premium_data %>%
-  filter(brand == "Yeezy")
-
-yeezy_split = initial_split(yeezys, prop=0.8)
-yeezy_train = training(yeezy_split)
-yeezy_test  = testing(yeezy_split)
-
-lm_2 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=yeezy_train)
-          
-rmse(lm_2, yeezy_test)
-#summary(lm_2)
-#summary(yeezys$relative_premium)
-sd(yeezys$relative_premium)
-
-## much lower rmse on par with random forest 
-
-nikes = premium_data %>%
-  filter(brand == "Off-White")
-
-nike_split = initial_split(nikes, prop=0.8)
-nike_train = training(nike_split)
-nike_test  = testing(nike_split)
-
-lm_3 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=nike_train)
-          
-rmse(lm_3, nike_test)
-#summary(lm_3)
-summary(nikes$relative_premium)
-sd(nikes$relative_premium)
-
-# the off-white shoes not only demand a much higher resale premium, but it also varies much more significantly than yeezys.the strongest predictors for both are shoe characteristics such and the state's historical ncaa basketball team performance, however we can much more precisely predict the resale premium of yeezys using the same linear model than for off-whites. notably for the off-white shoes, team perforamnce and shoe size are significantly more important than for yeezys.
-
-
-
-
-```
-
-
-```{r prediction model, cache=TRUE, echo=FALSE}
 # a single tree
 premium_tree = rpart(relative_premium ~ shoe_size + Year_month + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data = premium_train,
                      control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
@@ -174,9 +317,9 @@ premium_forest = randomForest(relative_premium ~ brand + shoe_size + buyer_regio
 premium_forest2 = randomForest(relative_premium ~ brand + shoe_size + Year_month  + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data=premium_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
 
 # variable importance measures
-vi = varImpPlot(premium_forest, type=1, main = "Figure 4: Random Forest Variable Importance")
+vi = varImpPlot(premium_forest, type=1, main = "Random Forest Variable Importance")
 
-vi2 = varImpPlot(premium_forest2, type=1, main = "Figure 4: Random Forest Variable Importance")
+vi2 = varImpPlot(premium_forest2, type=1, main = "Random Forest Variable Importance (With NCAA data")
 
 # # forest pd plot
 #partialPlot(premium_forest, premium_test, 'shoe_size', las=1, main=paste("Figure 5: Partial Dependence on Shoe Size"))
@@ -185,8 +328,6 @@ vi2 = varImpPlot(premium_forest2, type=1, main = "Figure 4: Random Forest Variab
 rmse_premium_tree = rmse(premium_tree, premium_test)
 rmse_premium_forest = rmse(premium_forest, premium_test)
 rmse_premium_forest2 = rmse(premium_forest2, premium_test)
-
-plot(premium_forest)
 
 rmse_premium_tree
 rmse_premium_forest
@@ -202,16 +343,26 @@ kable(rmse_results)
 # not including brand in the model distorts the rmse. since the majority of the shoes are yeezys, not controlling for brand causes error to bias downwards due to yeezys typically demanding lower premiums.
 
 ```
+We get an out-of-sample root mean squared error (RMSE) of 0.429 but we suspect the high number of levels from the buyer region variable to bias the model in favor of prices from New York or California, however figure blah shows that buyer region is the least important variable to our model's accuracy. By using a model that incorporates the NCAA data (which is aggregated by state) instead buyer region itself, our RMSE improves to 0.399.
 
+
+## Brand Specific
 
 ```{r brand specific model, cache=TRUE, echo=FALSE}
 
-# a single tree
-yeezy_tree = rpart(relative_premium ~ shoe_size + Year_month + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data = yeezy_train, control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
+yeezys = premium_data %>%
+  filter(brand == "Yeezy")
 
-nike_tree = rpart(relative_premium ~ shoe_size + Year_month + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data = yeezy_train, control = rpart.control(cp = 0.02, minsplit=300), maxdepth = 4)
+yeezy_split = initial_split(yeezys, prop=0.8)
+yeezy_train = training(yeezy_split)
+yeezy_test  = testing(yeezy_split)
 
-#rpart.plot(premium_tree, digits=-5, type=4, extra=1)
+nikes = premium_data %>%
+  filter(brand == "Off-White")
+
+nike_split = initial_split(nikes, prop=0.8)
+nike_train = training(nike_split)
+nike_test  = testing(nike_split)
 
 # forest 
 yeezy_forest = randomForest(relative_premium ~ shoe_size + buyer_region + Year_month  + primary_color + secondary_color + Material, data=yeezy_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
@@ -222,37 +373,92 @@ yeezy_forest2 = randomForest(relative_premium ~ shoe_size + buyer_region + Year_
 
 nike_forest2 = randomForest(relative_premium ~ shoe_size + Year_month  + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data=nike_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
 
+
+rmse_yeezy_forest = rmse(yeezy_forest, yeezy_test)
+rmse_yeezy_forest2 = rmse(yeezy_forest2, yeezy_test)
+
+rmse_nike_forest = rmse(nike_forest, nike_test)
+rmse_nike_forest2 = rmse(nike_forest2, nike_test)
+
+rmse_yeezy_forest
+rmse_yeezy_forest2
+rmse_nike_forest
+rmse_nike_forest2
+
+brand_rmse_results = data.frame(
+  Model = c("Yeezy Forest","Yeezy Forest with NCAA Data","Nike Forest","Nike Forest with NCAA Data"),
+  RMSE = c(rmse_yeezy_forest, rmse_yeezy_forest2, rmse_nike_forest, rmse_nike_forest2)
+)
+kable(brand_rmse_results)
+
 # variable importance measures
 vi3 = varImpPlot(yeezy_forest, type=1, main = "Yeezy Random Forest Variable Importance")
 
 vi4 = varImpPlot(nike_forest, type=1, main = "Nike Random Forest Variable Importance")
 
-
-
-rmse_yeezy_tree = rmse(yeezy_tree, yeezy_test)
-rmse_yeezy_forest = rmse(yeezy_forest, yeezy_test)
-rmse_yeezy_forest2 = rmse(yeezy_forest2, yeezy_test)
-
-rmse_nike_tree = rmse(nike_tree, nike_test)
-rmse_nike_forest = rmse(nike_forest, nike_test)
-rmse_nike_forest = rmse(nike_forest2, nike_test)
-
-rmse_yeezy_tree
-rmse_yeezy_forest
-rmse_yeezy_forest2
-rmse_nike_tree
-rmse_nike_forest
-rmse_nike_forest2
-
-brand_rmse_results = data.frame(
-  Model = c("Yeezy Tree","Yeezy Forest","Yeezy Forest 2","Nike Tree","Nike Forest","Nike Forest 2"),
-  RMSE = c(rmse_yeezy_tree, rmse_yeezy_forest, rmse_yeezy_forest2, rmse_nike_tree, rmse_nike_forest, rmse_nike_forest2)
-)
-kable(brand_rmse_results)
-
+#vi5 = varImpPlot(yeezy_forest2, type=1, main = "Yeezy Random Forest with NCAA Data Variable Importance")
+#vi6 = varImpPlot(nike_forest2, type=1, main = "Nike Random Forest with NCAA Data Variable Importance")
 
 # huge improvement over the linear models. errors are not bad at all considering the typical resale premiums for the nike shoes. separating the brands really do tell the true story. the ncaa variables matter more for the nike shoes
 
 ```
 
+The model used in the overall data controls for brand, but we get much more robust findings when splitting off the data. Separating the brands shows that we're looking at shoes that seem to target two completely different markets given that Nike shoes demand significantly higher and more varied prices. Focusing on each brand separately, allows the model to see more accurate importance of each predictor. Results in table blah show that we can predict the premiums on Adidas sales much more precisely than the Nikes.
+
+
+
+
+# Appendix
+
+## A.1 Linear Model
+```{r linear model, cache=TRUE, echo=FALSE}
+options(scipen=10000)
+
+# split data into training and testing
+
+lm_1 = lm(relative_premium ~ (shoe_size)^2 + primary_color + secondary_color + Win_Percentage_2019:order_year + AP_Ranked_2018:order_year + AP_Final_Poll_Appearances + disposable_per_cap_income:order_year + brand + Overall_Win_Loss_Percentage + Win_Percentage_2018:order_year + AP_Rank_2019:order_year + NCAA_Championships + state_pop_year:order_year + sp_index + monthly_retail:Year_month, data=premium_train)
+          
+rmse(lm_1, premium_test)
+summary(lm_1)
+
+#not as good as random forest and we can interpret the standard error to be pretty high given that a majority of our dataset consists of the yeezys. (what percent of our data pays little to no premium for shoes?) color seems to matter a lot. of all the other variables we collected, overall win loss percentage of ncaa teams in each state seem to matter, but not the year specific ones. if there is a cultural link between basketball and shoes, it must take time to develop and wont change over the course of a few years.(who are the winningest states?) stock market indexes that track consumer and retail markets are not a good predictor of resale shoe premium even when controlled for year-month. neither is income data when controlled for year.
+
+
+
+lm_2 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=yeezy_train)
+          
+rmse(lm_2, yeezy_test)
+summary(lm_2)
+summary(yeezys$relative_premium)
+sd(yeezys$relative_premium)
+
+## much lower rmse on par with random forest 
+
+
+lm_3 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=nike_train)
+          
+rmse(lm_3, nike_test)
+summary(lm_3)
+
+# the off-white shoes not only demand a much higher resale premium, but it also varies much more significantly than yeezys.the strongest predictors for both are shoe characteristics such and the state's historical ncaa basketball team performance, however we can much more precisely predict the resale premium of yeezys using the same linear model than for off-whites. notably for the off-white shoes, team perforamnce and shoe size are significantly more important than for yeezys.
+
+```
+
+
+## A.2 Oregon's high sales volume per capita
+We also decided to attempt to address the "Oregon problem" by traditional methods of data manipulation, controlling for population and disposable income and seeing if there was something within the data that could explain Oregon's curious position in order numbers.
+
+We also wanted to address any geographical component to order volume. After mapping orders, we noticed that Oregon had a disproportional share of orders not explained by population. As shown in \emph{Figure 2}, when controlled for population, Oregon still seems to order the most sneakers out of any state. \emph{Figure 2} displays orders in 2018, but the effect is still pronounced in 2017 and 2019. The maps for these two years have been included in the appendix as \emph{Figure A} and \emph{Figure B}, respectively. 
+
+
+Because of the geographical effects seen in Oregon with order volume in \emph{Figure 2}. We decided to investigate the geographical effects of resale premiums. We found that in 2017, Kentucky had an unusually high average premium. In 2019, both Utah and Hawaii carried larger average premiums. Maps displaying the average premiums by state can be found in the appendix as \emph{Figure C}, \emph{Figure D}, and \emph{Figure E}. We determined that the high average premium in Kentucky in 2017 was caused by a single sale of sneakers that carried a 2000% premium. The reasons for the higher average premiums in Utah and Hawaii appear to related to tastes. Both of these states had relatively small order volumes, and the majority of the sneakers purchased were \emph{Nike X Off-White} which typically have higher premiums than \emph{Yeezy}. 
+
+
+
+[id1]: https://www.nbcnews.com/news/nbcblk/sneakers-are-hot-resellers-are-making-living-coveted-models-rcna3619
+[id2]: https://www.nbcnews.com/news/nbcblk/sneakers-generated-70b-last-year-black-retailers-saw-little-rcna3546
+[id3]: https://stockx.com/
+[id4]: https://sneakerweekpdx.com/
+[id5]: https://www.nytimes.com/2015/07/05/arts/design/the-rise-of-sneaker-culture-tracks-coolness-at-the-brooklyn-museum.html
+[^1]: Colorway is a term used to quickly sum up the colors of the sneakers, in our dataset we have colorway categorized as primary, secondary and tertiary colors.
 
