@@ -21,6 +21,7 @@ library(modelr)
 library(caret)
 library(gamlr)
 library(knitr)
+library(kableExtra)
 
 ```
 
@@ -173,73 +174,11 @@ ggplot(shoe_data, aes(x=brand, y=relative_premium)) +
 
 
 ```
+
+
 The Nike x Off-White sneakers across the board demand much higher resale premiums and variability in price compared to the Adidas Yeezy shoes. In 557 Yeezy orders, we see cases where sale price of the shoe is lower than the retail price. There are no such cases in Nike orders.
 
-
-```{r visualizations2, echo=FALSE, dpi=300}
-
-time_elapse = shoe_data %>%
-  mutate(time_elapsed = as.numeric(as.Date(shoe_data$order_date) - as.Date(shoe_data$release_date)))
-
-time_elapse$time_elapsed[time_elapse$time_elapsed < 0] <- 0
-
-time_elapse = time_elapse%>%
-  select(premium, relative_premium, brand, time_elapsed)
-
-# We're looking at a sales premium percent change
-resale_prem = shoe_data %>%
-  group_by(year = year(order_date), buyer_region) %>%
-  summarise(avg_relative_premium = mean(relative_premium)) %>%
-  select(state = buyer_region, year, avg_relative_premium)
-
-total_order_count = shoe_data %>%
-  group_by(year = year(order_date), buyer_region) %>%
-  summarise(total_order_count = n()) %>%
-  select(state = buyer_region, year, total_order_count)
-
-state_year_aggs = merge(merge(resale_prem, total_order_count, by = c("state", "year")), state_pop_income, by.x = c("state","year"), by.y=c("buyer_region","year"), all.x = TRUE)
-
-## total orders
-
-# column is in millions so we gotta * 1000000
-
-state_year_aggs$orders_per_capita = state_year_aggs$total_order_count / state_year_aggs$state_pop_year
-
-state_year_aggs$orders_per_10000 = 10000*(state_year_aggs$total_order_count / state_year_aggs$state_pop_year)
-
-state_year_aggs$orders_income_fixed = (state_year_aggs$total_order_count / state_year_aggs$disposable_per_cap_income)
-
-## resale premium
-map_1 = plot_usmap(data = state_year_aggs %>% filter(year=="2017"), values = "avg_relative_premium", color = "black") + 
-  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
-  theme(legend.position = "right") + labs(title = "Figure C: 2017 Average Relative Premium by State")
-
-map_2 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "avg_relative_premium", color = "black") + 
-  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
-  theme(legend.position = "right") + labs(title = "Figure D: 2018 Average Relative Premium by State")
-
-map_3 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "avg_relative_premium", color = "black") + 
-  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
-  theme(legend.position = "right") + labs(title = "Figure E: 2019 Average Relative Premium by State")
-
-
-map_5 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "orders_per_10000", color = "red") + 
-  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
-  theme(legend.position = "right") + labs(title = "Figure 2: 2018 Total Order Count per 10000 Persons")
-
-
-# map_1
-# map_2
-# map_3
-
-
-## make a table with premiums. consider moving the maps to the appendix
-## make boxplot of premiums by brand
-```
-
-After looking at order volume, we then decided to turn our attention to premiums. Over the entire data set, \emph{Nike X Off-White} has an average premium of around 284\% and \emph{Yeezy} has an average premium of around 64\%. 
-
-Plotting the average premium over time, we can see that there again appears to be a seasonality effect. \emph{Figure 3} displays the average premium by brand over time. Interestingly, the average premium seems to dip for each brand around the holiday season. This effect could be due to a saturation of sellers trying to take advantage of the holiday season and new releases/restocks of shoes. The downward trend of premiums over time could be due to a variety of factors: possibly more people are selling on StockX over time, driving premiums down as sellers compete for consumers. Another factor driving down premiums could be that \emph{Yeezy} and \emph{Nike X Off-White} are putting out more stock to keep up with demand, driving premiums down on the demand side. 
+Over the entire data set, Nike X Off-White has an average relative premium of around 284\% and Yeezy has an average premium of around 64\%. Of our dataset, Nike x Off-White shoes represent 27,794 out of 99,956 orders (~28%) while there are 72,162 orders of Adidas Yeezy shoes (72%).
 
 
 ```{r visualizations3, echo=FALSE, dpi=300}
@@ -253,8 +192,6 @@ ggplot(brand_premium) +
 
 
 ```
-
-Seasonal drop in average relative premium can probably be attributed to more Yeezys being sold proportianlly during holidays because it's a cheaper gift.?????
 
 
 
@@ -281,7 +218,11 @@ sales_dollars = sales_dollars %>%
 
 ## order volume is less important. move it to the botom of summary stats
 ```
+
+Plotting the average premium over time, we can see that there again appears to be a seasonality effect. \emph{Figure 3} displays the average premium by brand over time. Interestingly, the average premium seems to dip for each brand around the holiday season. This could be because the orders for Yeezys spike up much more significantly compared to Nikes as shown in \emph{Figure 1}. The downward trend of premiums over time could be due to a variety of factors: possibly more people are selling on StockX over time, driving premiums down as sellers compete for consumers. Another factor driving down premiums could be that there is more stock of shoes being put out by Nike and especially Adidas that eventually make their way into the resale market.
+
 A look at monthly order volume by brand (\emph{Figure 1}), reveals a definite seasonal pattern, with orders spiking for both brands around the holiday season in both 2017 and 2018. The data also exhibit non-seasonal spikes in order numbers that appear to be linked to specific product release dates and restocks. For example, we believe the July 2018 spike in \emph{Yeezy} orders could be associated with the late June release of the \emph{350 V2 "Butter”}. It should be noted that the steep decline in orders around February 2019 is due to the data ending in the middle of the month.
+
 
 
 ## Part III: Random Forest Model
@@ -337,7 +278,7 @@ rmse_results = data.frame(
   Model = c("Tree","Forest","Forest with NCAA Data"),
   RMSE = c(rmse_premium_tree, rmse_premium_forest, rmse_premium_forest2)
 )
-kable(rmse_results)
+kable(rmse_results, format="latex")
 
 
 # not including brand in the model distorts the rmse. since the majority of the shoes are yeezys, not controlling for brand causes error to bias downwards due to yeezys typically demanding lower premiums.
@@ -389,7 +330,7 @@ brand_rmse_results = data.frame(
   Model = c("Yeezy Forest","Yeezy Forest with NCAA Data","Nike Forest","Nike Forest with NCAA Data"),
   RMSE = c(rmse_yeezy_forest, rmse_yeezy_forest2, rmse_nike_forest, rmse_nike_forest2)
 )
-kable(brand_rmse_results)
+kable(brand_rmse_results, format="latex")
 
 # variable importance measures
 vi3 = varImpPlot(yeezy_forest, type=1, main = "Yeezy Random Forest Variable Importance")
@@ -412,40 +353,101 @@ The model used in the overall data controls for brand, but we get much more robu
 
 ## A.1 Linear Model
 ```{r linear model, cache=TRUE, echo=FALSE}
-options(scipen=10000)
 
-# split data into training and testing
-
-lm_1 = lm(relative_premium ~ (shoe_size)^2 + primary_color + secondary_color + Win_Percentage_2019:order_year + AP_Ranked_2018:order_year + AP_Final_Poll_Appearances + disposable_per_cap_income:order_year + brand + Overall_Win_Loss_Percentage + Win_Percentage_2018:order_year + AP_Rank_2019:order_year + NCAA_Championships + state_pop_year:order_year + sp_index + monthly_retail:Year_month, data=premium_train)
-          
-rmse(lm_1, premium_test)
-summary(lm_1)
-
-#not as good as random forest and we can interpret the standard error to be pretty high given that a majority of our dataset consists of the yeezys. (what percent of our data pays little to no premium for shoes?) color seems to matter a lot. of all the other variables we collected, overall win loss percentage of ncaa teams in each state seem to matter, but not the year specific ones. if there is a cultural link between basketball and shoes, it must take time to develop and wont change over the course of a few years.(who are the winningest states?) stock market indexes that track consumer and retail markets are not a good predictor of resale shoe premium even when controlled for year-month. neither is income data when controlled for year.
-
-
+lm_1 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=premium_train)
 
 lm_2 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=yeezy_train)
-          
-rmse(lm_2, yeezy_test)
-summary(lm_2)
-summary(yeezys$relative_premium)
-sd(yeezys$relative_premium)
-
-## much lower rmse on par with random forest 
-
+        
 
 lm_3 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=nike_train)
-          
-rmse(lm_3, nike_test)
-summary(lm_3)
+        
 
-# the off-white shoes not only demand a much higher resale premium, but it also varies much more significantly than yeezys.the strongest predictors for both are shoe characteristics such and the state's historical ncaa basketball team performance, however we can much more precisely predict the resale premium of yeezys using the same linear model than for off-whites. notably for the off-white shoes, team perforamnce and shoe size are significantly more important than for yeezys.
+lm_rmse_results = data.frame(
+  Model = c("Overall","Yeezy","Nike"),
+  RMSE = c(          
+rmse(lm_1, premium_test), rmse(lm_2, yeezy_test), rmse(lm_3, nike_test))
+)
+kable(lm_rmse_results, format="latex")
+
 
 ```
+We tried looking at OLS regression models to predict the premiums due to the high number of categorical variables in our data as well as the fact that the random forest model required a lot of computing power which made it difficult to run on some of our machines.
+The results are in the same direction as with what we find through random forest but with higher error. Using the same shoe characteristics variables, NCAA data as well as the market data, we ran three models: one with the overall data and the other two are for each brand.
 
+Stock market indexes that track consumer and retail markets are not a good predictor of resale shoe premium even when controlled for year-month. neither is income data when controlled for year.
 
 ## A.2 Oregon's high sales volume per capita
+
+
+```{r visualizations2, echo=FALSE, dpi=300}
+
+time_elapse = shoe_data %>%
+  mutate(time_elapsed = as.numeric(as.Date(shoe_data$order_date) - as.Date(shoe_data$release_date)))
+
+time_elapse$time_elapsed[time_elapse$time_elapsed < 0] <- 0
+
+time_elapse = time_elapse%>%
+  select(premium, relative_premium, brand, time_elapsed)
+
+# We're looking at a sales premium percent change
+resale_prem = shoe_data %>%
+  group_by(year = year(order_date), buyer_region) %>%
+  summarise(avg_relative_premium = mean(relative_premium)) %>%
+  select(state = buyer_region, year, avg_relative_premium)
+
+total_order_count = shoe_data %>%
+  group_by(year = year(order_date), buyer_region) %>%
+  summarise(total_order_count = n()) %>%
+  select(state = buyer_region, year, total_order_count)
+
+state_year_aggs = merge(merge(resale_prem, total_order_count, by = c("state", "year")), state_pop_income, by.x = c("state","year"), by.y=c("buyer_region","year"), all.x = TRUE)
+
+## total orders
+
+# column is in millions so we gotta * 1000000
+
+state_year_aggs$orders_per_capita = state_year_aggs$total_order_count / state_year_aggs$state_pop_year
+
+state_year_aggs$orders_per_10000 = 10000*(state_year_aggs$total_order_count / state_year_aggs$state_pop_year)
+
+state_year_aggs$orders_income_fixed = (state_year_aggs$total_order_count / state_year_aggs$disposable_per_cap_income)
+
+## resale premium
+map_1 = plot_usmap(data = state_year_aggs %>% filter(year=="2017"), values = "avg_relative_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure C: 2017 Average Relative Premium by State")
+
+map_2 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "avg_relative_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure D: 2018 Average Relative Premium by State")
+
+map_3 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "avg_relative_premium", color = "black") + 
+  scale_fill_continuous(low = "white", high = "blue", name = "Average Relative Premium", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure E: 2019 Average Relative Premium by State")
+
+
+map_4 = plot_usmap(data = state_year_aggs %>% filter(year=="2017"), values = "orders_per_10000", color = "red") + 
+  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure 2: 2018 Total Order Count per 10000 Persons")
+
+map_5 = plot_usmap(data = state_year_aggs %>% filter(year=="2018"), values = "orders_per_10000", color = "red") + 
+  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure 2: 2018 Total Order Count per 10000 Persons")
+
+map_6 = plot_usmap(data = state_year_aggs %>% filter(year=="2019"), values = "orders_per_10000", color = "red") + 
+  scale_fill_continuous(low = "white", high = "orange", name = "Orders", label = scales::comma) + 
+  theme(legend.position = "right") + labs(title = "Figure 2: 2018 Total Order Count per 10000 Persons")
+
+
+map_4
+map_5
+map_6
+
+
+## make a table with premiums. consider moving the maps to the appendix
+## make boxplot of premiums by brand
+```
+
 We also decided to attempt to address the "Oregon problem" by traditional methods of data manipulation, controlling for population and disposable income and seeing if there was something within the data that could explain Oregon's curious position in order numbers.
 
 We also wanted to address any geographical component to order volume. After mapping orders, we noticed that Oregon had a disproportional share of orders not explained by population. As shown in \emph{Figure 2}, when controlled for population, Oregon still seems to order the most sneakers out of any state. \emph{Figure 2} displays orders in 2018, but the effect is still pronounced in 2017 and 2019. The maps for these two years have been included in the appendix as \emph{Figure A} and \emph{Figure B}, respectively. 
