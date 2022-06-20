@@ -1,13 +1,13 @@
 ---
-title: "Models"
-author: ""
-date: ""
+title: "Sneaky Machine Learning"
+author: "Jayme Gerring, Brendan Ok, Pin-Yun Lin"
+date: "5/9/2022"
 output: pdf_document
 urlcolor: blue
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, results='hide', message=FALSE, warning=FALSE, dpi=300)
+knitr::opts_chunk$set(echo = TRUE, results='hide', message=FALSE, warning=FALSE)
 
 library(tidyverse)
 library(lubridate)
@@ -109,13 +109,12 @@ shoe_data = shoe_data %>%
 
 # Abstract
 
-This report focuses on the question of premiums gained from reselling sneakers on the popular website StockX. We were interested in finding what characteristics determine premiums, that is the percent change in sale price on StockX compared to the shoe's original retail price. Using Random Forest Classification methods, we were able to determine that sale date and shoe size were the most important determining characteristics in maximizing premium. We also developed the secondary question examining the over-representation of Oregon in StockX orders, we determined that Portland's sneaker culture may be responsible for its outlier status in the data. 
-
+This report focuses on the question of premiums gained from reselling sneakers on the popular website StockX. We were interested in finding what characteristics determine resale price premiums. Using a random forest machine learning model, we were able to accurately predict resale prices of certain limited Nike and Adidas shoes using shoe characteristics.
 
 
 # Introduction
 
-Pulling in [\$70 billion in 2020][id1], the sneaker market has a powerful influence within American retail. Because of the high demand for these sometimes rare and unique shoes, a powerful resale market has also emerged. The sneaker resale market was worth as much as [\$2 billion in 2019][id2], a figure that has only increased as more and more players try to get in on the sometimes over 2000% profit margin earned from the rarest of sneakers.
+Pulling in [\$70 billion in 2020][id1], the sneaker market has a powerful influence within American consumer goods. Because of the high demand for these sometimes rare and unique shoes, a powerful resale market has also emerged. The sneaker resale market was worth as much as [\$2 billion in 2019][id2], a figure that has only increased as more and more players try to get in on the sometimes over 2000% profit margin earned from the rarest of sneakers.
 
 \vspace{2mm} 
 
@@ -152,7 +151,8 @@ To address the geographical component of our data, we figured that there is a cu
 
 ## Part II: Summary Statistics
 
-```{r visualizations, echo=FALSE, dpi=300}
+```{r visualizations, echo=FALSE, results = 'asis'}
+options(digits = 3)
 
 summary = shoe_data %>% 
   group_by(brand) %>%
@@ -165,8 +165,9 @@ summary = shoe_data %>%
             sample_size=length(relative_premium), 
             sd = sd(relative_premium))
 
-kable(summary, format="latex")
-#kable(summary)
+kable(summary, format="latex", booktabs = T) %>%
+  column_spec(column = 1:1, width = "1 in")
+
 
 ggplot(shoe_data, aes(x=brand, y=relative_premium)) +
   geom_boxplot()
@@ -181,7 +182,7 @@ The Nike x Off-White sneakers across the board demand much higher resale premium
 Over the entire data set, Nike X Off-White has an average relative premium of around 284\% and Yeezy has an average premium of around 64\%. Of our dataset, Nike x Off-White shoes represent 27,794 out of 99,956 orders (~28%) while there are 72,162 orders of Adidas Yeezy shoes (72%).
 
 
-```{r visualizations3, echo=FALSE, dpi=300}
+```{r visualizations3, echo=FALSE}
 
 brand_premium = shoe_data %>%
   group_by(brand, Year_month) %>%
@@ -195,7 +196,7 @@ ggplot(brand_premium) +
 
 
 
-```{r visualizations4, echo=FALSE, dpi=300}
+```{r visualizations4, echo=FALSE}
 
 # Next we'll look at total sales volume (number of orders) per month as well as cumulative orders over time.
 sales_vol = shoe_data %>%
@@ -262,6 +263,10 @@ vi = varImpPlot(premium_forest, type=1, main = "Random Forest Variable Importanc
 
 vi2 = varImpPlot(premium_forest2, type=1, main = "Random Forest Variable Importance (With NCAA data")
 
+
+```
+
+```{r prediction model results, cache=TRUE, echo=FALSE, results='asis'}
 # # forest pd plot
 #partialPlot(premium_forest, premium_test, 'shoe_size', las=1, main=paste("Figure 5: Partial Dependence on Shoe Size"))
 
@@ -270,15 +275,11 @@ rmse_premium_tree = rmse(premium_tree, premium_test)
 rmse_premium_forest = rmse(premium_forest, premium_test)
 rmse_premium_forest2 = rmse(premium_forest2, premium_test)
 
-rmse_premium_tree
-rmse_premium_forest
-rmse_premium_forest2
-
 rmse_results = data.frame(
   Model = c("Tree","Forest","Forest with NCAA Data"),
   RMSE = c(rmse_premium_tree, rmse_premium_forest, rmse_premium_forest2)
 )
-kable(rmse_results, format="latex")
+kable(rmse_results, format="latex", booktabs = T)
 
 
 # not including brand in the model distorts the rmse. since the majority of the shoes are yeezys, not controlling for brand causes error to bias downwards due to yeezys typically demanding lower premiums.
@@ -315,32 +316,30 @@ yeezy_forest2 = randomForest(relative_premium ~ shoe_size + buyer_region + Year_
 nike_forest2 = randomForest(relative_premium ~ shoe_size + Year_month  + primary_color + secondary_color + Material + Overall_Win_Loss_Percentage + NCAA_Championships, data=nike_train, control = rpart.control(cp = 0.002), ntree = 300, importance=TRUE, na.action = na.omit)
 
 
+vi3 = varImpPlot(yeezy_forest, type=1, main = "Yeezy Random Forest Variable Importance")
+
+vi4 = varImpPlot(nike_forest, type=1, main = "Nike Random Forest Variable Importance")
+
+
+```
+
+
+
+```{r brand specific model results, cache=TRUE, echo=FALSE, results = 'asis'}
+# variable importance measures
+
 rmse_yeezy_forest = rmse(yeezy_forest, yeezy_test)
 rmse_yeezy_forest2 = rmse(yeezy_forest2, yeezy_test)
 
 rmse_nike_forest = rmse(nike_forest, nike_test)
 rmse_nike_forest2 = rmse(nike_forest2, nike_test)
 
-rmse_yeezy_forest
-rmse_yeezy_forest2
-rmse_nike_forest
-rmse_nike_forest2
 
 brand_rmse_results = data.frame(
   Model = c("Yeezy Forest","Yeezy Forest with NCAA Data","Nike Forest","Nike Forest with NCAA Data"),
   RMSE = c(rmse_yeezy_forest, rmse_yeezy_forest2, rmse_nike_forest, rmse_nike_forest2)
 )
-kable(brand_rmse_results, format="latex")
-
-# variable importance measures
-vi3 = varImpPlot(yeezy_forest, type=1, main = "Yeezy Random Forest Variable Importance")
-
-vi4 = varImpPlot(nike_forest, type=1, main = "Nike Random Forest Variable Importance")
-
-#vi5 = varImpPlot(yeezy_forest2, type=1, main = "Yeezy Random Forest with NCAA Data Variable Importance")
-#vi6 = varImpPlot(nike_forest2, type=1, main = "Nike Random Forest with NCAA Data Variable Importance")
-
-# huge improvement over the linear models. errors are not bad at all considering the typical resale premiums for the nike shoes. separating the brands really do tell the true story. the ncaa variables matter more for the nike shoes
+kable(brand_rmse_results, format="latex", booktabs = T)
 
 ```
 
@@ -352,7 +351,7 @@ The model used in the overall data controls for brand, but we get much more robu
 # Appendix
 
 ## A.1 Linear Model
-```{r linear model, cache=TRUE, echo=FALSE}
+```{r linear model, cache=TRUE, echo=FALSE, results = 'asis'}
 
 lm_1 = lm(relative_premium ~ shoe_size + primary_color + secondary_color + AP_Final_Poll_Appearances + Overall_Win_Loss_Percentage + NCAA_Championships + sp_index + monthly_retail:Year_month, data=premium_train)
 
@@ -367,10 +366,11 @@ lm_rmse_results = data.frame(
   RMSE = c(          
 rmse(lm_1, premium_test), rmse(lm_2, yeezy_test), rmse(lm_3, nike_test))
 )
-kable(lm_rmse_results, format="latex")
+kable(lm_rmse_results, format="latex", booktabs = T)
 
 
 ```
+<br>
 We tried looking at OLS regression models to predict the premiums due to the high number of categorical variables in our data as well as the fact that the random forest model required a lot of computing power which made it difficult to run on some of our machines.
 The results are in the same direction as with what we find through random forest but with higher error. Using the same shoe characteristics variables, NCAA data as well as the market data, we ran three models: one with the overall data and the other two are for each brand.
 
@@ -379,7 +379,7 @@ Stock market indexes that track consumer and retail markets are not a good predi
 ## A.2 Oregon's high sales volume per capita
 
 
-```{r visualizations2, echo=FALSE, dpi=300}
+```{r visualizations2, echo=FALSE}
 
 time_elapse = shoe_data %>%
   mutate(time_elapsed = as.numeric(as.Date(shoe_data$order_date) - as.Date(shoe_data$release_date)))
