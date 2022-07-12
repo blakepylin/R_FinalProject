@@ -2,17 +2,31 @@ library(tidyverse)
 library(lubridate)
 library(zoo)
 
-monthly_retail_df <- read_csv("data/monthly_retail.csv")
-monthly_retail_df1 <- read_csv("data/monthly_retail.csv")
-sp_index_df <- read_csv("data/sp_index_df.csv")
-state_pop_income <- read_csv("data/state_pop_income.csv")
-shoe_data <- read_csv("data/shoe_data.csv")
+shoe_data = read_csv("data/shoe_data.csv", show_col_types = FALSE)
+monthly_retail_df = read_csv("data/monthly_retail.csv",show_col_types = FALSE)
+sp_index_df = read_csv("data/sp_index_df.csv",show_col_types = FALSE)
+state_pop_income = read_csv("data/state_pop_income.csv",show_col_types = FALSE)
+ncaa_teams = read.csv("data/ncaa.csv")
+shoe_characteristics = read.csv("data/shoe_characteristics.csv")
 
-
-# put on time stamp for every data sets
+#reformat dates, columns, misc
 shoe_data = shoe_data %>% 
-  mutate(time_stamp=mdy(shoe_data$order_date), .before=order_date)
-shoe_data$year = year(shoe_data$time_stamp)
+  mutate(order_date=mdy(shoe_data$order_date), .before=order_date) %>%
+  mutate(release_date=mdy(shoe_data$release_date), .before=release_date)
+shoe_data$order_year = year(shoe_data$order_date)
+shoe_data$Year_month <- format(as.Date(shoe_data$order_date), "%Y-%m") # wanted this column to use later
+
+sp_index_df = sp_index_df %>%
+  mutate(date=mdy(sp_index_df$date), .before=date) %>%
+  select(date, sp_index)
+
+monthly_retail_df = monthly_retail_df %>%
+  mutate(period=mdy(monthly_retail_df$Period), .before=Period) %>%
+  select(period, sporting_goods, monthly_retail)
+
+state_pop_income = state_pop_income %>%
+  mutate(state_pop_year = State_pop_year*1000000) %>%
+  select(year, buyer_region, state_pop_year, disposable_per_cap_income)
 
 #drop commas and dollar signs
 shoe_data$sale_price = as.numeric(gsub("[\\$,]", "", shoe_data$sale_price))
@@ -20,45 +34,21 @@ shoe_data$retail_price = as.numeric(gsub("[\\$,]", "", shoe_data$retail_price))
 state_pop_income$disposable_per_cap_income = as.numeric(gsub("[\\$,]", "", state_pop_income$disposable_per_cap_income))
 
 
-#sporting good index
-monthly_retail_df=monthly_retail_df %>% 
-  mutate(time_stamp=mdy(Period), .before = Period)
-monthly_retail_df = monthly_retail_df[ ,-(2)]
+##### merging
 
-monthly_retail_df = monthly_retail_df%>%
-  group_by(time_stamp) %>%
-  expand(time_stamp = seq(floor_date(time_stamp, unit = "month"),
-                          ceiling_date(time_stamp, unit="month")-days(1), by="day"), sporting_goods) %>% as.data.frame()
+# for monthly indexes we have to fill in the dates
+monthly_retail_df_test = monthly_retail_df
 
-# retail monthly index
-monthly_retail_df1=monthly_retail_df1 %>% 
-  mutate(time_stamp=mdy(Period), .before = Period)
-monthly_retail_df1 = monthly_retail_df1[ ,-(2)]
+monthly_retail_df = monthly_retail_df %>%
+  mutate(floor = floor_date(monthly_retail_df$period, "month")) %>%
+  mutate(ceiling = ceiling_date(monthly_retail_df$period, "month") - days(1))
 
-monthly_retail_df1 = monthly_retail_df1%>%
-  group_by(time_stamp) %>%
-  expand(time_stamp = seq(floor_date(time_stamp, unit = "month"),
-                          ceiling_date(time_stamp, unit="month")-days(1), by="day"), monthly_retail) %>% as.data.frame()
-
-
-#sp index
-sp_index_df = sp_index_df[ ,-(3:10)]
-
-sp_index_df = sp_index_df%>% 
-  mutate(time_stamp=mdy(date), .before= date)
-
-sp_index_df = sp_index_df[ ,-(2)]
-
-# merge 
-shoe_data = shoe_data %>%
-  left_join(monthly_retail_df, by='time_stamp') %>%
-  left_join(monthly_retail_df1, by='time_stamp')%>%
-  left_join(sp_index_df, by='time_stamp')
-
-shoe_data = na.locf(shoe_data)
+monthly_retail_df = monthly_retail_df %>%
+  rowwise() %>%
+  do(data.frame(monthly_retail = .$monthly_retail, dates = seq(.$floor, .$ceiling, by = 1), sporting_goods = .$sporting_goods, date = seq(.$floor, .$ceiling, by = 1))) %>%
+  select(dates, monthly_retail, sporting_goods)
 
 #team performance stuff
-ncaa_teams = read.csv("data/ncaa.csv")
 ncaa_teams = ncaa_teams %>%
   filter(To >= 2019 & From <= 2019) 
 
@@ -72,19 +62,21 @@ agg_ncaa = data.frame(
     group_by(State) %>%
     summarise(across(c("NCAA_Tournament_Appearances", "Final_Four_Appearances","NCAA_Championships", "AP_Final_Poll_Appearances"), ~ sum(.x, na.rm = TRUE)))
 )
-
-shoe_data = merge(shoe_data, agg_ncaa, by.x = "buyer_region", by.y="State", all.x = TRUE)
-
-#shoe characteristics
-shoe_characteristics = read.csv("data/shoe_characteristics.csv")
-
-shoe_data = merge(shoe_data, shoe_characteristics, by.x = "sneaker_name", by.y="Shoe", all.x = TRUE)
+agg_ncaa$AP_Ranked_2018[is.na(agg_ncaa$AP_Ranked_2018)] = 0
 
 
-# state population and income
-shoe_data = merge(shoe_data, state_pop_income, by.x = c("buyer_region","year"), by.y = c("buyer_region","year"), all.x = TRUE)
-shoe_data$Year_month <- format(as.Date(shoe_data$time_stamp), "%Y-%m")
+# merge everything
+shoe_data = shoe_data %>%
+  left_join(monthly_retail_df, by=c("order_date" = "dates")) %>%
+  left_join(sp_index_df, by=c("order_date" = "date")) %>%
+  left_join(agg_ncaa, by=c("buyer_region" = "State")) %>%
+  left_join(shoe_characteristics, by=c("sneaker_name" = "Shoe")) %>%
+  left_join(state_pop_income, by=c("buyer_region", "order_year" = "year")) %>%
+  fill(sp_index) %>%
+  select(-ends_with(".1"))
 
+shoe_data = shoe_data %>%
+  mutate(premium = sale_price - retail_price) %>%
+  mutate(relative_premium = (sale_price - retail_price)/retail_price)
 
-write.csv(shoe_data, "data/shoe_final.csv")
 
