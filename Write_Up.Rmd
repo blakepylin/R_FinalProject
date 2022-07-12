@@ -280,7 +280,7 @@ kable(rmse_results, format="latex", booktabs = T)
 ```
 
 \vspace{2mm}
-We get an out-of-sample root mean squared error (RMSE) of 0.429 but we suspect the high number of levels from the buyer region variable to bias the model in favor of prices from New York or California, however figure blah shows that buyer region is the least important variable to our model's accuracy. By using a model that incorporates the NCAA data (which is aggregated by state) instead buyer region itself, our RMSE improves to 0.399.
+We get an out-of-sample root mean squared error (RMSE) of 0.425 but we suspect the high number of levels from the buyer region variable to bias the model in favor of prices from New York or California, however the first variable importance plot shows that buyer region is the least important variable to our model's accuracy. The second model incorporates the NCAA data (which is aggregated by state) rather than using the states themselves.
 
 
 ## Brand Specific
@@ -339,7 +339,7 @@ kable(brand_rmse_results, format="latex", booktabs = T)
 ```
 
 \vspace{2mm} 
-The model used in the overall data controls for brand, but we get much more robust findings when splitting off the data. Separating the brands shows that we're looking at shoes that seem to target two completely different markets given that Nike shoes demand significantly higher and more varied prices. Focusing on each brand separately, allows the model to see more accurate importance of each predictor. Results in table blah show that we can predict the premiums on Adidas sales much more precisely than the Nikes.
+The model used in the overall data controls for brand, but we get much more robust findings when splitting off the data. Separating the brands shows that we're looking at shoes that seem to target two completely different markets given that Nike shoes demand significantly higher and more varied prices. Focusing on each brand separately, allows the model to see more accurate importance of each predictor. The RMSE results show that we can predict the premiums on Adidas sales much more precisely than the Nikes.
 
 
 
